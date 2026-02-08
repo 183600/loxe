@@ -1,0 +1,88 @@
+name: iflow-5pkgs-autoloop
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: iflow-5pkgs-autoloop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  autoloop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      WORK_BRANCH: main
+      RUN_HOURS: 4
+
+      # iFlow
+      IFLOW_API_KEY: ${{ secrets.IFLOW_API_KEY }}
+      IFLOW_BASE_URL: https://apis.iflow.cn/v1
+      IFLOW_MODEL_NAME: glm-4.6
+
+      GH_TOKEN: ${{ github.token }}
+
+      # 可选：你可以在仓库变量里覆盖测试命令模板
+      # TEST_CMD_TEMPLATE: 'pnpm --filter "./packages/%s" test'
+
+    steps:
+      - name: Checkout (PAT)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.IFLOW_PAT }}
+          fetch-depth: 0
+
+      - name: Git identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "iflow-bot"
+          git config user.email "iflow-bot@users.noreply.github.com"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install iFlow CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm i -g @iflow-ai/iflow-cli@latest
+          iflow --version
+
+      - name: Verify secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${IFLOW_API_KEY:-}" || (echo "Missing IFLOW_API_KEY" && exit 1)
+
+      - name: Make script executable
+        shell: bash
+        run: chmod +x scripts/iflow_5pkgs_loop.sh
+
+      - name: Run loop (timeboxed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM $(( RUN_HOURS * 3600 )) bash scripts/iflow_5pkgs_loop.sh || true
+
+      - name: Final commit & push
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH="${WORK_BRANCH:-main}"
+
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: autoloop batch (run $GITHUB_RUN_ID)" || true
+          fi
+
+          git fetch origin "${BRANCH}" --prune
+          git push origin "HEAD:${BRANCH}" --follow-tags --force-with-lease
