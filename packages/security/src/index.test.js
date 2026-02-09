@@ -145,4 +145,80 @@ describe('SecurityContext', () => {
       }).toThrow('Failed to decrypt data');
     });
   });
+
+  describe('sign/verify', () => {
+    it('should sign and verify string data', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      const data = 'Hello, World!';
+      const signature = security.sign(data);
+      const isValid = security.verify(data, signature);
+      
+      expect(signature).toBeTruthy();
+      expect(typeof signature).toBe('string');
+      expect(signature).toContain(':');
+      expect(isValid).toBe(true);
+    });
+
+    it('should sign and verify object data', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      const data = { message: 'Hello', id: 123 };
+      const signature = security.sign(data);
+      const isValid = security.verify(data, signature);
+      
+      expect(signature).toBeTruthy();
+      expect(typeof signature).toBe('string');
+      expect(signature).toContain(':');
+      expect(isValid).toBe(true);
+    });
+
+    it('should fail verification for modified data', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      const originalData = 'Hello, World!';
+      const modifiedData = 'Hello, Modified!';
+      const signature = security.sign(originalData);
+      const isValid = security.verify(modifiedData, signature);
+      
+      expect(isValid).toBe(false);
+    });
+
+    it('should fail verification for invalid signature format', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      const data = 'Hello, World!';
+      const invalidSignature = 'invalid-signature';
+      const isValid = security.verify(data, invalidSignature);
+      
+      expect(isValid).toBe(false);
+    });
+
+    it('should fail verification for empty signature', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      const data = 'Hello, World!';
+      const emptySignature = '';
+      const isValid = security.verify(data, emptySignature);
+      
+      expect(isValid).toBe(false);
+    });
+
+    it('should generate different signatures for different data', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      const data1 = 'Hello, World!';
+      const data2 = 'Goodbye, World!';
+      const signature1 = security.sign(data1);
+      const signature2 = security.sign(data2);
+      
+      expect(signature1).not.toBe(signature2);
+    });
+  });
 });
