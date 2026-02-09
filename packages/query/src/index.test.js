@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createQueryEngine } from './index.js';
 
 describe('Query Engine', () => {
@@ -275,6 +275,224 @@ describe('Query Engine', () => {
       const result = query.ensureIndex('users', ['city']);
       expect(result.created).toBe(true);
       expect(result.message).toBe('Index created successfully');
+    });
+  });
+  
+  describe('live 方法', () => {
+    let mockEventService;
+    
+    beforeEach(() => {
+      // 模拟事件服务
+      mockEventService = {
+        subscriptions: new Map(),
+        
+        subscribe: (dataSource, subscription) => {
+          if (!mockEventService.subscriptions.has(dataSource)) {
+            mockEventService.subscriptions.set(dataSource, []);
+          }
+          mockEventService.subscriptions.get(dataSource).push(subscription);
+        },
+        
+        unsubscribe: (subscription) => {
+          for (const [dataSource, subs] of mockEventService.subscriptions.entries()) {
+            const index = subs.indexOf(subscription);
+            if (index > -1) {
+              subs.splice(index, 1);
+              return true;
+            }
+          }
+          return false;
+        },
+        
+        // 模拟数据变化事件
+        simulateDataChange: (dataSource) => {
+          const subs = mockEventService.subscriptions.get(dataSource) || [];
+          subs.forEach(sub => sub.update());
+        }
+      };
+      
+      // 更新上下文以包含事件服务
+      mockCtx.get = (serviceName) => {
+        if (serviceName === 'storage') {
+          return {
+            getData: (sourceName) => {
+              if (sourceName === 'users') {
+                return [
+                  { id: 1, name: 'Alice', age: 30, city: 'New York' },
+                  { id: 2, name: 'Bob', age: 25, city: 'Los Angeles' },
+                  { id: 3, name: 'Charlie', age: 35, city: 'New York' },
+                  { id: 4, name: 'Diana', age: 28, city: 'Chicago' }
+                ];
+              }
+              return [];
+            }
+          };
+        } else if (serviceName === 'events') {
+          return mockEventService;
+        }
+        throw new Error(`Unknown service: ${serviceName}`);
+      };
+      
+      query = createQueryEngine(mockCtx);
+    });
+    
+    it('应该返回初始结果并创建订阅', () => {
+      let callbackResult = null;
+      
+      const subscription = query.live(
+        { from: 'users', where: { city: 'New York' } },
+        (result) => {
+          callbackResult = result;
+        }
+      );
+      
+      // 验证初始结果
+      expect(callbackResult).toHaveLength(2);
+      expect(callbackResult.every(item => item.city === 'New York')).toBe(true);
+      
+      // 验证订阅对象
+      expect(subscription).toBeDefined();
+      expect(typeof subscription.unsubscribe).toBe('function');
+      expect(typeof subscription.update).toBe('function');
+      expect(subscription.currentResult).toBe(callbackResult);
+    });
+    
+    it('应该在缺少 options 参数时抛出错误', () => {
+      expect(() => {
+        query.live(null, () => {});
+      }).toThrow('Live query requires options parameter');
+    });
+    
+    it('应该在缺少 callback 参数时抛出错误', () => {
+      expect(() => {
+        query.live({ from: 'users' });
+      }).toThrow('Live query requires callback function');
+    });
+    
+    it('应该在缺少 from 参数时抛出错误', () => {
+      expect(() => {
+        query.live({ where: { city: 'New York' } }, () => {});
+      }).toThrow('Live query requires "from" parameter');
+    });
+    
+    it('应该支持取消订阅', () => {
+      const subscription = query.live(
+        { from: 'users', where: { city: 'New York' } },
+        () => {}
+      );
+      
+      // 验证订阅已添加
+      expect(mockEventService.subscriptions.get('users')).toHaveLength(1);
+      
+      // 取消订阅
+      subscription.unsubscribe();
+      
+      // 验证订阅已移除
+      expect(mockEventService.subscriptions.get('users')).toHaveLength(0);
+    });
+    
+    it('应该在数据变化时更新结果', () => {
+      let callCount = 0;
+      let lastResult = null;
+      
+      const subscription = query.live(
+        { from: 'users', where: { city: 'New York' } },
+        (result) => {
+          callCount++;
+          lastResult = result;
+        }
+      );
+      
+      // 验证初始调用
+      expect(callCount).toBe(1);
+      expect(lastResult).toHaveLength(2);
+      
+      // 模拟数据变化
+      mockEventService.simulateDataChange('users');
+      
+      // 验证更新调用
+      expect(callCount).toBe(2);
+    });
+    
+    it('应该在事件服务不可用时警告但不抛出错误', () => {
+      // 移除事件服务
+      mockCtx.get = (serviceName) => {
+        if (serviceName === 'storage') {
+          return {
+            getData: (sourceName) => {
+              if (sourceName === 'users') {
+                return [
+                  { id: 1, name: 'Alice', age: 30, city: 'New York' },
+                  { id: 2, name: 'Bob', age: 25, city: 'Los Angeles' }
+                ];
+              }
+              return [];
+            }
+          };
+        }
+        throw new Error(`Unknown service: ${serviceName}`);
+      };
+      
+      query = createQueryEngine(mockCtx);
+      
+      // 使用控制台警告模拟来验证警告
+      const originalWarn = console.warn;
+      const warnSpy = vi.fn();
+      console.warn = warnSpy;
+      
+      const subscription = query.live(
+        { from: 'users', where: { city: 'New York' } },
+        () => {}
+      );
+      
+      // 验证警告已发出
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Event service not available, live query will not update automatically'
+      );
+      
+      // 验证订阅仍然创建
+      expect(subscription).toBeDefined();
+      expect(typeof subscription.unsubscribe).toBe('function');
+      
+      // 恢复原始警告函数
+      console.warn = originalWarn;
+    });
+    
+    it('应该在取消订阅时处理事件服务不可用的情况', () => {
+      // 移除事件服务
+      mockCtx.get = (serviceName) => {
+        if (serviceName === 'storage') {
+          return {
+            getData: () => []
+          };
+        }
+        throw new Error(`Unknown service: ${serviceName}`);
+      };
+      
+      query = createQueryEngine(mockCtx);
+      
+      const subscription = query.live(
+        { from: 'users', where: { city: 'New York' } },
+        () => {}
+      );
+      
+      // 使用控制台警告模拟来验证警告
+      const originalWarn = console.warn;
+      const warnSpy = vi.fn();
+      console.warn = warnSpy;
+      
+      // 取消订阅不应该抛出错误
+      expect(() => {
+        subscription.unsubscribe();
+      }).not.toThrow();
+      
+      // 验证警告已发出
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Event service not available, unsubscribe operation is a no-op'
+      );
+      
+      // 恢复原始警告函数
+      console.warn = originalWarn;
     });
   });
 });

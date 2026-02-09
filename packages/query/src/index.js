@@ -87,6 +87,80 @@ export function createQueryEngine(ctx) {
     };
   };
   
+  // 添加 live 方法 - 用于订阅查询结果的变化
+  query.live = function(options, callback) {
+    // 验证输入参数
+    if (!options) {
+      throw new Error('Live query requires options parameter');
+    }
+    
+    if (!callback || typeof callback !== 'function') {
+      throw new Error('Live query requires callback function');
+    }
+    
+    const { from, where } = options;
+    
+    if (!from) {
+      throw new Error('Live query requires "from" parameter');
+    }
+    
+    // 获取初始查询结果
+    const initialResult = query(options);
+    
+    // 调用回调函数，传入初始结果
+    callback(initialResult);
+    
+    // 创建订阅对象
+    const subscription = {
+      // 查询选项
+      options,
+      
+      // 回调函数
+      callback,
+      
+      // 当前结果
+      currentResult: initialResult,
+      
+      // 取消订阅方法
+      unsubscribe: function() {
+        try {
+          const eventService = ctx.get('events');
+          if (eventService && typeof eventService.unsubscribe === 'function') {
+            eventService.unsubscribe(this);
+          }
+        } catch (e) {
+          // 如果事件服务不存在，只是警告
+          console.warn('Event service not available, unsubscribe operation is a no-op');
+        }
+      },
+      
+      // 更新方法，当数据变化时调用
+      update: function() {
+        const newResult = query(this.options);
+        
+        // 只有结果发生变化时才通知
+        if (!resultsEqual(this.currentResult, newResult)) {
+          this.currentResult = newResult;
+          this.callback(newResult);
+        }
+      }
+    };
+    
+    // 尝试订阅数据变化事件
+    try {
+      const eventService = ctx.get('events');
+      if (eventService && typeof eventService.subscribe === 'function') {
+        eventService.subscribe(from, subscription);
+      }
+    } catch (e) {
+      // 如果事件服务不存在，只是警告
+      console.warn('Event service not available, live query will not update automatically');
+    }
+    
+    // 返回订阅对象
+    return subscription;
+  };
+  
   return query;
 }
 
@@ -174,6 +248,38 @@ function evaluateCondition(itemValue, conditionValue) {
   
   // 简单相等比较
   return itemValue === conditionValue;
+}
+
+/**
+ * 比较两个查询结果是否相等
+ * @param {Array} result1 - 第一个结果
+ * @param {Array} result2 - 第二个结果
+ * @returns {Boolean} 是否相等
+ */
+function resultsEqual(result1, result2) {
+  // 如果引用相同，直接返回 true
+  if (result1 === result2) {
+    return true;
+  }
+  
+  // 如果一个是数组另一个不是，返回 false
+  if (Array.isArray(result1) !== Array.isArray(result2)) {
+    return false;
+  }
+  
+  // 如果长度不同，返回 false
+  if (result1.length !== result2.length) {
+    return false;
+  }
+  
+  // 比较每个元素（简单比较）
+  for (let i = 0; i < result1.length; i++) {
+    if (result1[i] !== result2[i]) {
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 // 默认导出查询引擎创建函数
