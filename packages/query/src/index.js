@@ -9,7 +9,7 @@
  * @returns {Function} 查询函数
  */
 export function createQueryEngine(ctx) {
-  return function query(options) {
+  const query = function query(options) {
     const { from, where } = options;
     
     // 验证输入参数
@@ -38,6 +38,56 @@ export function createQueryEngine(ctx) {
     // 应用过滤条件
     return filterData(dataSource, where);
   };
+  
+  // 添加 compile 方法 - 用于编译查询优化
+  query.compile = function(options) {
+    const { from, where } = options;
+    
+    // 验证输入参数
+    if (!from) {
+      throw new Error('Compile requires "from" parameter');
+    }
+    
+    // 占位实现：返回编译后的查询函数
+    // 实际实现应该包含查询优化逻辑
+    return function() {
+      return query(options);
+    };
+  };
+  
+  // 添加 ensureIndex 方法 - 用于确保索引存在
+  query.ensureIndex = function(dataSource, fields) {
+    // 验证输入参数
+    if (!dataSource) {
+      throw new Error('ensureIndex requires "dataSource" parameter');
+    }
+    
+    if (!fields || !Array.isArray(fields) || fields.length === 0) {
+      throw new Error('ensureIndex requires "fields" array parameter');
+    }
+    
+    // 占位实现：通过上下文调用索引服务
+    // 实际实现应该创建或验证索引
+    try {
+      const indexService = ctx.get('index');
+      if (indexService && typeof indexService.ensureIndex === 'function') {
+        return indexService.ensureIndex(dataSource, fields);
+      }
+    } catch (e) {
+      // 如果索引服务不存在，返回占位结果
+      console.warn('Index service not available, index operation is a placeholder');
+    }
+    
+    // 占位返回值
+    return {
+      dataSource,
+      fields,
+      created: false,
+      message: 'Index placeholder - no actual index created'
+    };
+  };
+  
+  return query;
 }
 
 /**

@@ -189,4 +189,92 @@ describe('Query Engine', () => {
       }).toThrow('Unsupported operator: $unsupported');
     });
   });
+  
+  describe('compile 方法', () => {
+    it('应该返回编译后的查询函数', () => {
+      const compiledQuery = query.compile({ 
+        from: 'users', 
+        where: { city: 'New York' } 
+      });
+      
+      expect(typeof compiledQuery).toBe('function');
+      
+      // 执行编译后的查询
+      const result = compiledQuery();
+      expect(result).toHaveLength(2);
+      expect(result.every(item => item.city === 'New York')).toBe(true);
+    });
+    
+    it('应该在缺少 from 参数时抛出错误', () => {
+      expect(() => {
+        query.compile({ where: { city: 'New York' } });
+      }).toThrow('Compile requires "from" parameter');
+    });
+    
+    it('应该支持编译无过滤条件的查询', () => {
+      const compiledQuery = query.compile({ from: 'users' });
+      const result = compiledQuery();
+      expect(result).toHaveLength(4);
+    });
+  });
+  
+  describe('ensureIndex 方法', () => {
+    it('应该返回索引占位对象', () => {
+      const result = query.ensureIndex('users', ['city', 'age']);
+      
+      expect(result).toEqual({
+        dataSource: 'users',
+        fields: ['city', 'age'],
+        created: false,
+        message: 'Index placeholder - no actual index created'
+      });
+    });
+    
+    it('应该在缺少 dataSource 参数时抛出错误', () => {
+      expect(() => {
+        query.ensureIndex();
+      }).toThrow('ensureIndex requires "dataSource" parameter');
+    });
+    
+    it('应该在缺少 fields 参数时抛出错误', () => {
+      expect(() => {
+        query.ensureIndex('users');
+      }).toThrow('ensureIndex requires "fields" array parameter');
+    });
+    
+    it('应该在 fields 不是数组时抛出错误', () => {
+      expect(() => {
+        query.ensureIndex('users', 'city');
+      }).toThrow('ensureIndex requires "fields" array parameter');
+    });
+    
+    it('应该在 fields 是空数组时抛出错误', () => {
+      expect(() => {
+        query.ensureIndex('users', []);
+      }).toThrow('ensureIndex requires "fields" array parameter');
+    });
+    
+    it('应该尝试使用索引服务（如果可用）', () => {
+      // 添加模拟的索引服务
+      mockCtx.get = (serviceName) => {
+        if (serviceName === 'index') {
+          return {
+            ensureIndex: (dataSource, fields) => {
+              return {
+                dataSource,
+                fields,
+                created: true,
+                message: 'Index created successfully'
+              };
+            }
+          };
+        }
+        throw new Error(`Unknown service: ${serviceName}`);
+      };
+      
+      const result = query.ensureIndex('users', ['city']);
+      expect(result.created).toBe(true);
+      expect(result.message).toBe('Index created successfully');
+    });
+  });
 });
