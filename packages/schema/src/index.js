@@ -1,4 +1,5 @@
 const schemas = new Map();
+const migrations = new Map();
 
 export function registerSchema(name, schema) {
   if (typeof name !== 'string' || !name.trim()) {
@@ -102,4 +103,117 @@ function validateData(data, schema) {
     valid: errors.length === 0,
     errors
   };
+}
+
+export function registerMigration(schemaName, fromVersion, toVersion, migrationFn) {
+  if (typeof schemaName !== 'string' || !schemaName.trim()) {
+    throw new Error('Schema name must be a non-empty string');
+  }
+  
+  if (typeof fromVersion !== 'string' || !fromVersion.trim()) {
+    throw new Error('From version must be a non-empty string');
+  }
+  
+  if (typeof toVersion !== 'string' || !toVersion.trim()) {
+    throw new Error('To version must be a non-empty string');
+  }
+  
+  if (typeof migrationFn !== 'function') {
+    throw new Error('Migration function must be a function');
+  }
+  
+  const key = `${schemaName}:${fromVersion}->${toVersion}`;
+  migrations.set(key, {
+    schemaName,
+    fromVersion,
+    toVersion,
+    migrationFn
+  });
+  
+  return true;
+}
+
+export function migrate(schemaName, data, fromVersion, toVersion) {
+  if (typeof schemaName !== 'string' || !schemaName.trim()) {
+    throw new Error('Schema name must be a non-empty string');
+  }
+  
+  if (fromVersion === toVersion) {
+    return data;
+  }
+  
+  const migrationPath = findMigrationPath(schemaName, fromVersion, toVersion);
+  
+  if (!migrationPath || migrationPath.length === 0) {
+    throw new Error(`No migration path found from ${fromVersion} to ${toVersion} for schema ${schemaName}`);
+  }
+  
+  let result = data;
+  
+  for (const migration of migrationPath) {
+    result = migration.migrationFn(result);
+  }
+  
+  return result;
+}
+
+export function getMigrationHistory(schemaName) {
+  if (typeof schemaName !== 'string' || !schemaName.trim()) {
+    throw new Error('Schema name must be a non-empty string');
+  }
+  
+  const history = [];
+  
+  for (const [key, migration] of migrations.entries()) {
+    if (migration.schemaName === schemaName) {
+      history.push({
+        fromVersion: migration.fromVersion,
+        toVersion: migration.toVersion
+      });
+    }
+  }
+  
+  return history;
+}
+
+function findMigrationPath(schemaName, fromVersion, toVersion) {
+  // Simple direct migration lookup
+  const key = `${schemaName}:${fromVersion}->${toVersion}`;
+  const directMigration = migrations.get(key);
+  
+  if (directMigration) {
+    return [directMigration];
+  }
+  
+  // Try to find a multi-step path (basic implementation)
+  // This is a simplified version - in a real implementation, you might use
+  // a proper graph traversal algorithm like BFS or DFS
+  const path = [];
+  let currentVersion = fromVersion;
+  
+  while (currentVersion !== toVersion) {
+    let foundMigration = null;
+    
+    for (const [key, migration] of migrations.entries()) {
+      if (migration.schemaName === schemaName && 
+          migration.fromVersion === currentVersion) {
+        foundMigration = migration;
+        break;
+      }
+    }
+    
+    if (!foundMigration) {
+      return null; // No path found
+    }
+    
+    path.push(foundMigration);
+    currentVersion = foundMigration.toVersion;
+    
+    // Prevent infinite loops
+    if (path.length > 10) {
+      return null;
+    }
+  }
+  
+  return path;
 }
