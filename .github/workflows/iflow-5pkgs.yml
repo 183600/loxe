@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write          # ← 需要 actions: write 权限来触发工作流
 
 jobs:
   autoloop:
@@ -19,16 +20,10 @@ jobs:
     env:
       WORK_BRANCH: main
       RUN_HOURS: 4
-
-      # iFlow
       IFLOW_API_KEY: ${{ secrets.IFLOW_API_KEY }}
       IFLOW_BASE_URL: https://apis.iflow.cn/v1
       IFLOW_MODEL_NAME: glm-4.6
-
-      GH_TOKEN: ${{ github.token }}
-
-      # 可选：你可以在仓库变量里覆盖测试命令模板
-      # TEST_CMD_TEMPLATE: 'pnpm --filter "./packages/%s" test'
+      GH_TOKEN: ${{ secrets.IFLOW_PAT }}   # ← 改用 PAT，GITHUB_TOKEN 无法触发新的工作流
 
     steps:
       - name: Checkout (PAT)
@@ -78,11 +73,21 @@ jobs:
         run: |
           set -euo pipefail
           BRANCH="${WORK_BRANCH:-main}"
-
           git add -A
           if ! git diff --cached --quiet; then
             git commit -m "ci: autoloop batch (run $GITHUB_RUN_ID)" || true
           fi
-
           git fetch origin "${BRANCH}" --prune
           git push origin "HEAD:${BRANCH}" --follow-tags --force-with-lease
+
+      # ========== 新增：触发下一轮 ==========
+      - name: Trigger next loop
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Triggering next workflow run..."
+          gh workflow run iflow-5pkgs-autoloop.yml \
+            --repo "${{ github.repository }}" \
+            --ref main
+          echo "Next run triggered successfully."
