@@ -87,7 +87,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Triggering next workflow run..."
-          gh workflow run iflow-5pkgs-autoloop.yml \
+          gh workflow run iflow-5pkgs.yml \
             --repo "${{ github.repository }}" \
             --ref main
           echo "Next run triggered successfully."
