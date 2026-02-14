@@ -1,23 +1,26 @@
 #!/usr/bin/env node
 
-// 检查 vitest 是否可用
-try {
-  require('vitest');
-  console.log('vitest found, running tests...');
+import { spawn } from 'child_process';
+
+// 直接使用 npx 运行 vitest
+function runTests() {
+  console.log('Running tests with npx vitest...');
   
-  // 如果 vitest 可用，则运行它
-  const { spawn } = require('child_process');
+  // 使用 npx 运行 vitest
   const vitest = spawn('npx', ['vitest', ...process.argv.slice(2)], { 
     stdio: 'inherit',
     shell: true 
   });
   
+  vitest.on('error', (error) => {
+    console.error('Error: Failed to start vitest. Make sure dependencies are installed.');
+    console.error('Please run "pnpm install" in the repository root.');
+    process.exit(1);
+  });
+  
   vitest.on('exit', (code) => {
     process.exit(code);
   });
-  
-} catch (error) {
-  console.error('Error: vitest is not installed. Please run "pnpm install" in the repository root.');
-  console.error('This is a known issue when dependencies are not installed.');
-  process.exit(1);
 }
+
+runTests();
