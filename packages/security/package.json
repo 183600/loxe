@@ -1,1 +1,13 @@
-{"name": "@lfde/security", "version": "1.0.0", "description": "Security package for Valt", "main": "src/index.js", "type": "module", "scripts": {"test": "pnpm dlx vitest"}, "dependencies": {}, "devDependencies": {"vitest": "^1.0.0"}}
+{
+  "name": "@lfde/security",
+  "version": "1.0.0",
+  "description": "Security package for Valt",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "bun-types": "^1.0.0"
+  }
+}

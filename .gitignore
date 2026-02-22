@@ -51,6 +51,9 @@ coverage/
 # (keep lockfiles tracked; ignore pnpm store cache if present)
 .pnpm-store/
 
+# Bun
+bun.lockb
+
 # ===== Test artifacts =====
 junit.xml
 test-results/

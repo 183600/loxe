@@ -1,7 +1,7 @@
 {
-  "name": "@lfde/schema",
+  "name": "@lfde/logger",
   "version": "1.0.0",
-  "description": "Schema management for Valt",
+  "description": "Logging utilities for Valt",
   "type": "module",
   "main": "src/index.js",
   "exports": {
@@ -12,5 +12,7 @@
   },
   "devDependencies": {
     "bun-types": "^1.0.0"
-  }
+  },
+  "keywords": ["logger", "log", "debug"],
+  "license": "MIT"
 }

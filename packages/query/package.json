@@ -1,1 +1,13 @@
-{"name": "@lfde/query", "version": "1.0.0", "type": "module", "description": "Query engine for Valt", "main": "src/index.js", "scripts": {"test": "node test-runner.js"}, "devDependencies": {"vitest": "^1.6.1"}}
+{
+  "name": "@lfde/query",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Query engine for Valt",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "bun-types": "^1.0.0"
+  }
+}

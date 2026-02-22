@@ -1,7 +1,7 @@
 {
-  "name": "@lfde/schema",
+  "name": "@lfde/validation",
   "version": "1.0.0",
-  "description": "Schema management for Valt",
+  "description": "Data validation utilities for Valt",
   "type": "module",
   "main": "src/index.js",
   "exports": {
@@ -12,5 +12,7 @@
   },
   "devDependencies": {
     "bun-types": "^1.0.0"
-  }
+  },
+  "keywords": ["validation", "schema", "validate"],
+  "license": "MIT"
 }

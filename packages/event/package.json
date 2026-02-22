@@ -1,7 +1,7 @@
 {
-  "name": "@lfde/schema",
+  "name": "@lfde/event",
   "version": "1.0.0",
-  "description": "Schema management for Valt",
+  "description": "Event handling and pub/sub for Valt",
   "type": "module",
   "main": "src/index.js",
   "exports": {
@@ -12,5 +12,7 @@
   },
   "devDependencies": {
     "bun-types": "^1.0.0"
-  }
+  },
+  "keywords": ["event", "pubsub", "emitter"],
+  "license": "MIT"
 }

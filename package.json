@@ -1,7 +1,6 @@
 {
   "name": "valt-workspace",
   "private": true,
-  "packageManager": "pnpm@10.29.2",
   "workspaces": [
     "packages/*"
   ]

@@ -1,1 +1,23 @@
-{"name": "@lfde/sync", "version": "0.0.1", "description": "Sync package for Valt", "type": "module", "main": "dist/index.js", "types": "dist/index.d.ts", "files": ["dist"], "scripts": {"build": "tsc", "test": "vitest", "test:run": "vitest run"}, "dependencies": {}, "devDependencies": {"typescript": "^5.0.0", "vitest": "^1.0.0"}, "exports": {".": {"import": "./dist/index.js", "types": "./dist/index.d.ts"}}}
+{
+  "name": "@lfde/sync",
+  "version": "0.0.1",
+  "description": "Sync package for Valt",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "bun-types": "^1.0.0",
+    "typescript": "^5.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  }
+}
