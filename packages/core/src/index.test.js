@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { createCore } from './index.js';
 
 describe('Core', () => {
@@ -141,5 +141,83 @@ describe('Core', () => {
     
     const result = core.get('undefinedService');
     expect(result).toBeUndefined();
+  });
+
+  it('should support service dependency injection', () => {
+    const core = createCore();
+    
+    // 注册基础服务
+    core.register('config', () => ({ apiUrl: 'https://api.example.com', timeout: 5000 }), true);
+    
+    // 注册依赖其他服务的服务
+    core.register('httpClient', (ctx) => {
+      const config = ctx.get('config');
+      return {
+        baseUrl: config.apiUrl,
+        timeout: config.timeout,
+        request: (path) => `${config.apiUrl}${path}`
+      };
+    }, true);
+    
+    const client = core.get('httpClient');
+    expect(client.baseUrl).toBe('https://api.example.com');
+    expect(client.timeout).toBe(5000);
+    expect(client.request('/users')).toBe('https://api.example.com/users');
+  });
+
+  it('should support circular dependency detection through factory', () => {
+    const core = createCore();
+    
+    core.register('serviceA', (ctx) => {
+      return { name: 'A', ref: () => ctx.get('serviceB') };
+    }, true);
+    
+    core.register('serviceB', (ctx) => {
+      return { name: 'B', ref: () => ctx.get('serviceA') };
+    }, true);
+    
+    const a = core.get('serviceA');
+    const b = a.ref();
+    expect(b.name).toBe('B');
+  });
+
+  it('should handle service with multiple dependencies', () => {
+    const core = createCore();
+    
+    core.register('logger', () => ({ log: (msg) => console.log(msg) }), true);
+    core.register('storage', () => ({ data: new Map() }), true);
+    core.register('cache', () => ({ items: new Map() }), true);
+    
+    core.register('dataService', (ctx) => {
+      const logger = ctx.get('logger');
+      const storage = ctx.get('storage');
+      const cache = ctx.get('cache');
+      
+      return {
+        logger,
+        storage,
+        cache,
+        get: (key) => storage.data.get(key),
+        set: (key, value) => storage.data.set(key, value)
+      };
+    }, true);
+    
+    const service = core.get('dataService');
+    expect(service.logger).toBeDefined();
+    expect(service.storage).toBeDefined();
+    expect(service.cache).toBeDefined();
+  });
+
+  it('should allow re-registering services', () => {
+    const core = createCore();
+    
+    core.register('service', () => ({ version: 1 }), true);
+    const v1 = core.get('service');
+    expect(v1.version).toBe(1);
+    
+    // 重新注册
+    core.register('service', () => ({ version: 2 }), true);
+    const v2 = core.get('service');
+    expect(v2.version).toBe(2);
   });
 });

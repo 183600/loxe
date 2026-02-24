@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { createEventEmitter } from './index.js';
 
 describe('EventEmitter', () => {
@@ -99,5 +99,116 @@ describe('EventEmitter', () => {
   it('should handle events with no listeners', () => {
     const emitter = createEventEmitter();
     expect(() => { emitter.emit('nonexistent', 'data'); }).not.toThrow();
+  });
+
+  it('should support event chaining with multiple emissions', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.on('step1', (data) => {
+      results.push('step1:' + data);
+      emitter.emit('step2', data.toUpperCase());
+    });
+    
+    emitter.on('step2', (data) => {
+      results.push('step2:' + data);
+      emitter.emit('step3', data + '!');
+    });
+    
+    emitter.on('step3', (data) => {
+      results.push('step3:' + data);
+    });
+    
+    emitter.emit('step1', 'hello');
+    
+    expect(results).toEqual([
+      'step1:hello',
+      'step2:HELLO',
+      'step3:HELLO!'
+    ]);
+  });
+
+  it('should handle errors in event listeners without affecting other listeners', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.on('test', () => {
+      results.push('listener1');
+    });
+    
+    emitter.on('test', () => {
+      results.push('listener2');
+      throw new Error('Listener error');
+    });
+    
+    emitter.on('test', () => {
+      results.push('listener3');
+    });
+    
+    expect(() => emitter.emit('test')).toThrow('Listener error');
+    expect(results).toEqual(['listener1', 'listener2', 'listener3']);
+  });
+
+  it('should support removing listener during event emission', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    const listener = () => {
+      results.push('listener');
+      emitter.off('test', listener);
+    };
+    
+    emitter.on('test', listener);
+    
+    emitter.emit('test');
+    expect(results).toEqual(['listener']);
+    
+    emitter.emit('test');
+    expect(results).toEqual(['listener']);
+  });
+
+  it('should handle complex data structures in events', () => {
+    const emitter = createEventEmitter();
+    let receivedData = null;
+    
+    const complexData = {
+      id: 1,
+      name: 'Test',
+      nested: {
+        value: 42,
+        items: [1, 2, 3]
+      },
+      timestamp: Date.now()
+    };
+    
+    emitter.on('complex', (data) => {
+      receivedData = data;
+    });
+    
+    emitter.emit('complex', complexData);
+    
+    expect(receivedData).toEqual(complexData);
+    expect(receivedData.nested.items).toEqual([1, 2, 3]);
+  });
+
+  it('should support event names with special characters', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.on('event:name', (data) => results.push('colon:' + data));
+    emitter.on('event.name', (data) => results.push('dot:' + data));
+    emitter.on('event-name', (data) => results.push('dash:' + data));
+    emitter.on('event/name', (data) => results.push('slash:' + data));
+    
+    emitter.emit('event:name', 'test');
+    emitter.emit('event.name', 'test');
+    emitter.emit('event-name', 'test');
+    emitter.emit('event/name', 'test');
+    
+    expect(results).toHaveLength(4);
+    expect(results).toContain('colon:test');
+    expect(results).toContain('dot:test');
+    expect(results).toContain('dash:test');
+    expect(results).toContain('slash:test');
   });
 });
