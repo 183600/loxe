@@ -134,4 +134,21 @@ describe('Router', () => {
     const result = router.handle('GET', '/products/123');
     expect(result).toEqual({ category: 'products', id: '123' });
   });
-});
+
+  it('should handle route parameters with special characters', () => {
+    const router = createRouter();
+    router.get('/files/:filename', (ctx) => ctx.params.filename);
+    const result = router.handle('GET', '/files/my-file_v1.0.txt');
+    expect(result).toBe('my-file_v1.0.txt');
+  });
+
+    it('should handle root path and empty path', () => {
+      const router = createRouter();
+      router.get('/', () => 'root');
+      router.get('/api', () => 'api');
+  
+      expect(router.handle('GET', '/')).toBe('root');
+      expect(router.handle('GET', '/api')).toBe('api');
+      // 空路径 '' 会匹配到根路径 '/'，这是路由实现的行为
+      expect(router.handle('GET', '')).toBe('root');
+    });});

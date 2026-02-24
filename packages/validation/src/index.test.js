@@ -76,4 +76,41 @@ describe('Validation', () => {
     expect(result.errors).toContain('Validation failed: email');
     expect(result.errors).toContain('Validation failed: minLength');
   });
+
+  it('should validate nested object schemas', () => {
+    const { schema, validate } = createValidation();
+    const userSchema = schema({
+      name: ['required', 'string'],
+      age: ['required', 'number', { min: 0 }, { max: 150 }],
+      email: ['required', 'email']
+    });
+    
+    const validData = {
+      name: 'John',
+      age: 30,
+      email: 'john@example.com'
+    };
+    expect(userSchema(validData).valid).toBe(true);
+    
+    const invalidData = {
+      name: 'John',
+      age: 200,
+      email: 'invalid-email'
+    };
+    const result = userSchema(invalidData);
+    expect(result.valid).toBe(false);
+    expect(result.errors.age).toBeDefined();
+    expect(result.errors.email).toBeDefined();
+  });
+
+  it('should handle multiple validation rules with mixed types', () => {
+    const { validate } = createValidation();
+    const result = validate(25, ['required', 'number', { min: 18 }, { max: 65 }]);
+    
+    expect(result.valid).toBe(true);
+    
+    const invalidResult = validate(15, ['required', 'number', { min: 18 }, { max: 65 }]);
+    expect(invalidResult.valid).toBe(false);
+    expect(invalidResult.errors).toContain('Validation failed: min');
+  });
 });

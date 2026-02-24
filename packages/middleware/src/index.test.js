@@ -112,4 +112,44 @@ describe('Middleware', () => {
     await mw.execute({});
     expect(order).toEqual([1]); // 第二个中间件不应该执行
   });
+
+  it('should support middleware chain with context modification', async () => {
+    const mw = createMiddleware();
+    
+    mw.use(async (ctx, next) => {
+      ctx.step1 = 'executed';
+      await next();
+      ctx.step1After = 'completed';
+    });
+    
+    mw.use(async (ctx, next) => {
+      ctx.step2 = 'executed';
+      ctx.result = { status: 'success', data: 'test' };
+    });
+    
+    const ctx = {};
+    await mw.execute(ctx);
+    
+    expect(ctx.step1).toBe('executed');
+    expect(ctx.step1After).toBe('completed');
+    expect(ctx.step2).toBe('executed');
+    expect(ctx.result).toEqual({ status: 'success', data: 'test' });
+  });
+
+  it('should throw error when next() is called multiple times', async () => {
+    const mw = createMiddleware();
+    
+    mw.use(async (ctx, next) => {
+      await next();
+      await next(); // 第二次调用 next()
+    });
+    
+    mw.use(async (ctx, next) => {
+      ctx.reached = true;
+    });
+    
+    const ctx = {};
+    await expect(mw.execute(ctx)).rejects.toThrow('next() called multiple times');
+    expect(ctx.reached).toBe(true);
+  });
 });

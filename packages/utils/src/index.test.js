@@ -170,4 +170,26 @@ describe('Utils', () => {
     
     expect(result).toEqual({ a: 1, c: 3 });
   });
+
+  it('should handle throttle with rapid calls', () => {
+    const utils = createUtils();
+    vi.useFakeTimers();
+    
+    const fn = vi.fn();
+    const throttled = utils.throttle(fn, 100);
+    
+    // 快速调用多次
+    throttled();
+    throttled();
+    throttled();
+    throttled();
+    
+    expect(fn).toHaveBeenCalledTimes(1);
+    
+    vi.advanceTimersByTime(100);
+    throttled();
+    expect(fn).toHaveBeenCalledTimes(2);
+    
+    vi.restoreAllMocks();
+  });
 });
