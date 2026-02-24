@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { createConfig } from './index.js';
 
 describe('Config', () => {
@@ -52,5 +52,25 @@ describe('Config', () => {
   it('should support empty initialization', () => {
     const config = createConfig();
     expect(config.get('missing', 'default')).toBe('default');
+  });
+
+  it('should fallback to environment variables for missing keys', () => {
+    const originalEnv = process.env.TEST_VAR;
+    process.env.TEST_VAR = 'env_value';
+    
+    const config = createConfig();
+    expect(config.get('test.var')).toBe('env_value');
+    
+    process.env.TEST_VAR = originalEnv;
+  });
+
+  it('should prefer config values over environment variables', () => {
+    const originalEnv = process.env.TEST_VAR;
+    process.env.TEST_VAR = 'env_value';
+    
+    const config = createConfig({ 'test.var': 'config_value' });
+    expect(config.get('test.var')).toBe('config_value');
+    
+    process.env.TEST_VAR = originalEnv;
   });
 });

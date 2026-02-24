@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createCore } from '../core/src/index.js';
-import { createConfig } from '../config/src/index.js';
-import { createLogger } from '../logger/src/index.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createCore } from './index.js';
+import { createConfig } from '../../config/src/index.js';
+import { createLogger } from '../../logger/src/index.js';
 
 describe('Core + Config + Logger Integration', () => {
   beforeEach(() => {

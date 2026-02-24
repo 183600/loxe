@@ -4,6 +4,9 @@
   "workspaces": [
     "packages/*"
   ],
+  "scripts": {
+    "test": "pnpm -r test"
+  },
   "devDependencies": {
     "vitest": "^4.0.18"
   }

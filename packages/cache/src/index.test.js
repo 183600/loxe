@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createCache } from './index.js';
 
 describe('Cache', () => {
@@ -72,5 +72,56 @@ describe('Cache', () => {
     expect(keys).toContain('key1');
     expect(keys).toContain('key2');
     expect(keys).toContain('key3');
+  });
+
+  it('should store and retrieve complex objects', () => {
+    const cache = createCache();
+    const complexObj = {
+      id: 1,
+      name: 'Test',
+      nested: {
+        value: 42,
+        items: [1, 2, 3]
+      },
+      timestamp: Date.now()
+    };
+    
+    cache.set('complex', complexObj);
+    const retrieved = cache.get('complex');
+    
+    expect(retrieved).toEqual(complexObj);
+    expect(retrieved.nested.items).toEqual([1, 2, 3]);
+  });
+
+  it('should store and retrieve arrays', () => {
+    const cache = createCache();
+    const array = [1, 2, 3, { nested: 'value' }, [4, 5]];
+    
+    cache.set('array', array);
+    const retrieved = cache.get('array');
+    
+    expect(retrieved).toEqual(array);
+    expect(retrieved[3].nested).toBe('value');
+  });
+
+  it('should store and retrieve null and undefined values', () => {
+    const cache = createCache();
+    
+    cache.set('nullValue', null);
+    cache.set('undefinedValue', undefined);
+    
+    expect(cache.get('nullValue')).toBeNull();
+    expect(cache.get('undefinedValue')).toBeUndefined();
+  });
+
+  it('should handle TTL with complex objects', () => {
+    const cache = createCache();
+    const complexObj = { data: [1, 2, 3], meta: { version: 1 } };
+    
+    cache.set('temp', complexObj, 1000);
+    expect(cache.get('temp')).toEqual(complexObj);
+    
+    vi.advanceTimersByTime(1000);
+    expect(cache.get('temp')).toBeUndefined();
   });
 });

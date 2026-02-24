@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createCore } from '../core/src/index.js';
-import { createEventEmitter } from '../event/src/index.js';
-import { createCache } from '../cache/src/index.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createCore } from './index.js';
+import { createEventEmitter } from '../../event/src/index.js';
+import { createCache } from '../../cache/src/index.js';
 
 describe('Core + Event + Cache Integration', () => {
   beforeEach(() => {

@@ -211,4 +211,55 @@ describe('EventEmitter', () => {
     expect(results).toContain('dash:test');
     expect(results).toContain('slash:test');
   });
+
+  it('should execute listeners in registration order', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.on('test', () => results.push(1));
+    emitter.on('test', () => results.push(2));
+    emitter.on('test', () => results.push(3));
+    emitter.on('test', () => results.push(4));
+    
+    emitter.emit('test');
+    
+    expect(results).toEqual([1, 2, 3, 4]);
+  });
+
+  it('should maintain order when adding and removing listeners', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    const listener1 = () => results.push(1);
+    const listener2 = () => results.push(2);
+    const listener3 = () => results.push(3);
+    
+    emitter.on('test', listener1);
+    emitter.on('test', listener2);
+    emitter.on('test', listener3);
+    
+    emitter.emit('test');
+    expect(results).toEqual([1, 2, 3]);
+    
+    emitter.off('test', listener2);
+    results.length = 0;
+    
+    emitter.emit('test');
+    expect(results).toEqual([1, 3]);
+  });
+
+  it('should execute once listener before regular listeners if registered first', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.once('test', () => results.push('once'));
+    emitter.on('test', () => results.push('regular'));
+    
+    emitter.emit('test');
+    expect(results).toEqual(['once', 'regular']);
+    
+    results.length = 0;
+    emitter.emit('test');
+    expect(results).toEqual(['regular']);
+  });
 });
