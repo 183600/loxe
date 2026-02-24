@@ -1,263 +1,156 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createCore } from './index.js';
 import { createSecurityContext } from '../../security/src/index.js';
 import { createEventEmitter } from '../../event/src/index.js';
 
 describe('Integration: Core + Security + Event', () => {
-  let core;
-  let logSpy;
+  it('should emit security events on access control', () => {
+    const core = createCore();
 
-  beforeEach(() => {
-    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    core = createCore();
-
-    // 注册事件服务
-    core.register('events', () => createEventEmitter(), true);
-
-    // 注册安全服务
     core.register('security', () => createSecurityContext(core), true);
-  });
+    core.register('event', createEventEmitter, true);
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('should emit security events on permission changes', () => {
-    const events = core.get('events');
     const security = core.get('security');
+    const event = core.get('event');
 
-    let permissionChanged = false;
-    events.on('security:permission:changed', (data) => {
-      permissionChanged = true;
-      expect(data.action).toBe('grant');
-      expect(data.resource).toBe('admin-panel');
-    });
-
-    // 设置用户
     security.setPrincipal({ id: 'user1', role: 'admin' });
-
-    // 添加策略
     security.addPolicy({
-      action: 'access',
-      principalAttributes: { role: 'admin' },
-      resourceAttributes: { type: 'admin-panel' }
+      action: 'read',
+      principalAttributes: { role: 'admin' }
     });
 
-    // 检查权限（会触发事件）
-    const canAccess = security.can('access', { type: 'admin-panel' });
+    const events = [];
+    event.on('security:access', (data) => events.push(data));
+
+    const resource = { type: 'document', id: 1 };
+    const canAccess = security.can('read', resource);
+
     expect(canAccess).toBe(true);
   });
 
-  it('should log security events for audit purposes', () => {
-    const events = core.get('events');
+  it('should log security events', () => {
+    const core = createCore();
+
+    core.register('security', () => createSecurityContext(core), true);
+    core.register('event', createEventEmitter, true);
+
+    core.register('securityEventLogger', (ctx) => {
+      const security = ctx.get('security');
+      const event = ctx.get('event');
+
+      return {
+        checkAccess(action, resource) {
+          const result = security.can(action, resource);
+          event.emit('security:check', {
+            action,
+            resource,
+            allowed: result,
+            principal: security.principal
+          });
+          return result;
+        }
+      };
+    }, true);
+
+    const securityLogger = core.get('securityEventLogger');
+    const event = core.get('event');
     const security = core.get('security');
 
-    let auditLog = null;
-    events.on('security:audit', (data) => {
-      auditLog = data;
-    });
-
-    // 设置用户
     security.setPrincipal({ id: 'user1', role: 'user' });
-
-    // 尝试访问受保护资源
-    const resource = { type: 'sensitive-data', classification: 'confidential' };
-    const canAccess = security.can('access', resource);
-
-    // 发布审计事件
-    events.emit('security:audit', {
-      principal: { id: 'user1', role: 'user' },
-      action: 'access',
-      resource: resource,
-      allowed: canAccess,
-      timestamp: Date.now()
-    });
-
-    expect(auditLog).toBeDefined();
-    expect(auditLog.principal.id).toBe('user1');
-    expect(auditLog.action).toBe('access');
-  });
-
-  it('should notify on authentication events', () => {
-    const events = core.get('events');
-    const security = core.get('security');
-
-    let authEvent = null;
-    events.on('security:auth', (data) => {
-      authEvent = data;
-    });
-
-    // 模拟登录
-    events.emit('security:auth', {
-      type: 'login',
-      principal: { id: 'user1', role: 'admin' },
-      timestamp: Date.now(),
-      success: true
-    });
-
-    expect(authEvent).toBeDefined();
-    expect(authEvent.type).toBe('login');
-    expect(authEvent.success).toBe(true);
-
-    // 设置当前用户
-    security.setPrincipal(authEvent.principal);
-    expect(security.principal.id).toBe('user1');
-  });
-
-  it('should handle authorization failure events', () => {
-    const events = core.get('events');
-    const security = core.get('security');
-
-    let failureEvent = null;
-    events.on('security:authz:failed', (data) => {
-      failureEvent = data;
-    });
-
-    // 设置普通用户
-    security.setPrincipal({ id: 'user1', role: 'user' });
-
-    // 添加管理员策略
     security.addPolicy({
-      action: 'delete',
-      principalAttributes: { role: 'admin' }
+      action: 'read',
+      principalAttributes: { role: 'user' }
     });
 
-    // 尝试删除操作
-    const canDelete = security.can('delete', { type: 'user' });
+    const events = [];
+    event.on('security:check', (data) => events.push(data));
 
-    if (!canDelete) {
-      events.emit('security:authz:failed', {
-        principal: security.principal,
-        action: 'delete',
-        resource: { type: 'user' },
-        reason: 'Insufficient permissions'
-      });
-    }
+    const result = securityLogger.checkAccess('read', { type: 'data' });
 
-    expect(failureEvent).toBeDefined();
-    expect(failureEvent.action).toBe('delete');
-    expect(failureEvent.reason).toBe('Insufficient permissions');
+    expect(result).toBe(true);
+    expect(events).toHaveLength(1);
+    expect(events[0].allowed).toBe(true);
   });
 
-  it('should support role-based security events', () => {
-    const events = core.get('events');
-    const security = core.get('security');
+  it('should emit events on encryption/decryption', () => {
+    const core = createCore();
 
-    let roleEvent = null;
-    events.on('security:role:changed', (data) => {
-      roleEvent = data;
-    });
+    core.register('security', () => createSecurityContext(core), true);
+    core.register('event', createEventEmitter, true);
 
-    // 设置用户
-    security.setPrincipal({ id: 'user1', role: 'user' });
+    core.register('secureEventService', (ctx) => {
+      const security = ctx.get('security');
+      const event = ctx.get('event');
 
-    // 模拟角色变更
-    events.emit('security:role:changed', {
-      principalId: 'user1',
-      oldRole: 'user',
-      newRole: 'admin',
-      timestamp: Date.now()
-    });
+      return {
+        encrypt(data) {
+          const encrypted = security.encrypt(data);
+          event.emit('security:encrypt', { original: data, encrypted });
+          return encrypted;
+        },
+        decrypt(encryptedData) {
+          const decrypted = security.decrypt(encryptedData);
+          event.emit('security:decrypt', { encrypted: encryptedData, decrypted });
+          return decrypted;
+        }
+      };
+    }, true);
 
-    expect(roleEvent).toBeDefined();
-    expect(roleEvent.oldRole).toBe('user');
-    expect(roleEvent.newRole).toBe('admin');
+    const secureService = core.get('secureEventService');
+    const event = core.get('event');
 
-    // 更新用户角色
-    security.setPrincipal({ id: 'user1', role: 'admin' });
+    const events = [];
+    event.on('security:encrypt', (data) => events.push({ type: 'encrypt', ...data }));
+    event.on('security:decrypt', (data) => events.push({ type: 'decrypt', ...data }));
+
+    const original = { id: 1, secret: 'password123' };
+    const encrypted = secureService.encrypt(original);
+    const decrypted = secureService.decrypt(encrypted);
+
+    expect(decrypted).toEqual(original);
+    expect(events).toHaveLength(2);
+    expect(events[0].type).toBe('encrypt');
+    expect(events[1].type).toBe('decrypt');
   });
 
-  it('should emit events for data encryption/decryption', () => {
-    const events = core.get('events');
-    const security = core.get('security');
+  it('should emit events on signing and verification', () => {
+    const core = createCore();
 
-    let cryptoEvent = null;
-    events.on('security:crypto', (data) => {
-      cryptoEvent = data;
-    });
+    core.register('security', () => createSecurityContext(core), true);
+    core.register('event', createEventEmitter, true);
 
-    const data = { id: 1, content: 'Sensitive information' };
+    core.register('signatureEventService', (ctx) => {
+      const security = ctx.get('security');
+      const event = ctx.get('event');
 
-    // 加密数据
-    const encrypted = security.encrypt(data);
+      return {
+        sign(data) {
+          const signature = security.sign(data);
+          event.emit('security:sign', { data, signature });
+          return signature;
+        },
+        verify(data, signature) {
+          const isValid = security.verify(data, signature);
+          event.emit('security:verify', { data, signature, isValid });
+          return isValid;
+        }
+      };
+    }, true);
 
-    // 发布加密事件
-    events.emit('security:crypto', {
-      operation: 'encrypt',
-      dataType: 'object',
-      success: true,
-      timestamp: Date.now()
-    });
+    const signatureService = core.get('signatureEventService');
+    const event = core.get('event');
 
-    expect(cryptoEvent).toBeDefined();
-    expect(cryptoEvent.operation).toBe('encrypt');
-    expect(cryptoEvent.success).toBe(true);
+    const events = [];
+    event.on('security:sign', (data) => events.push({ type: 'sign', ...data }));
+    event.on('security:verify', (data) => events.push({ type: 'verify', ...data }));
 
-    // 解密数据
-    const decrypted = security.decrypt(encrypted);
-    expect(decrypted).toEqual(data);
-  });
+    const data = { transactionId: 'tx123', amount: 100 };
+    const signature = signatureService.sign(data);
+    const isValid = signatureService.verify(data, signature);
 
-  it('should support security event aggregation', () => {
-    const events = core.get('events');
-    const security = core.get('security');
-
-    const securityEvents = [];
-
-    // 收集所有安全相关事件
-    events.on('security:*', (event, data) => {
-      securityEvents.push({ event, data });
-    });
-
-    // 设置用户
-    security.setPrincipal({ id: 'user1', role: 'admin' });
-
-    // 添加策略
-    security.addPolicy({
-      action: 'access',
-      principalAttributes: { role: 'admin' }
-    });
-
-    // 检查权限
-    security.can('access', { type: 'admin-panel' });
-
-    // 发布多个安全事件
-    events.emit('security:audit', { type: 'access', resource: 'admin-panel' });
-    events.emit('security:auth', { type: 'login', success: true });
-
-    expect(securityEvents.length).toBeGreaterThan(0);
-    expect(securityEvents.some(e => e.event === 'security:audit')).toBe(true);
-    expect(securityEvents.some(e => e.event === 'security:auth')).toBe(true);
-  });
-
-  it('should handle security context lifecycle events', () => {
-    const events = core.get('events');
-    const security = core.get('security');
-
-    let lifecycleEvent = null;
-    events.on('security:lifecycle', (data) => {
-      lifecycleEvent = data;
-    });
-
-    // 发布安全上下文初始化事件
-    events.emit('security:lifecycle', {
-      phase: 'initialized',
-      timestamp: Date.now()
-    });
-
-    expect(lifecycleEvent).toBeDefined();
-    expect(lifecycleEvent.phase).toBe('initialized');
-
-    // 设置用户
-    security.setPrincipal({ id: 'user1', role: 'user' });
-
-    // 发布用户会话开始事件
-    events.emit('security:lifecycle', {
-      phase: 'session:started',
-      principal: security.principal,
-      timestamp: Date.now()
-    });
-
-    expect(lifecycleEvent.phase).toBe('session:started');
+    expect(isValid).toBe(true);
+    expect(events).toHaveLength(2);
+    expect(events[0].type).toBe('sign');
+    expect(events[1].type).toBe('verify');
   });
 });

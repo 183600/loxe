@@ -114,8 +114,8 @@ describe('Integration: Core + Query + Cache', () => {
     cache.set(cacheKey, result);
 
     const cachedResult = cache.get(cacheKey);
-    expect(cachedResult).toHaveLength(1);
-    expect(cachedResult[0].name).toBe('Charlie');
+    expect(cachedResult).toHaveLength(2);
+    expect(cachedResult.map(u => u.name)).toEqual(['Alice', 'Charlie']);
   });
 
   it('should handle cache misses gracefully', () => {

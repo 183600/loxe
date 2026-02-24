@@ -10,29 +10,35 @@ export function createCache(ctx) {
   const cacheApi = {
     get(key) {
       const entry = cache.get(key);
-      return entry ? entry.value : undefined;
+      if (!entry) return undefined;
+      
+      // 检查是否过期
+      if (entry.ttl && Date.now() - entry.timestamp > entry.ttl) {
+        this.delete(key);
+        return undefined;
+      }
+      
+      return entry.value;
     },
 
     set(key, value, ttl) {
-      // 清除旧的定时器
+      // 清除旧定时器
       if (timers.has(key)) {
         clearTimeout(timers.get(key));
         timers.delete(key);
       }
 
-      cache.set(key, { value, timestamp: Date.now() });
+      const numTtl = ttl !== undefined && ttl !== null ? Number(ttl) : undefined;
+      
+      // TTL 为负数时立即过期
+      if (numTtl !== undefined && numTtl < 0) {
+        return this;
+      }
 
-      // 处理 TTL：转换为数字，处理边界情况
-      if (ttl !== undefined && ttl !== null) {
-        const numTtl = Number(ttl);
-        
-        // TTL 为负数时立即过期
-        if (numTtl < 0) {
-          this.delete(key);
-          return this;
-        }
-        
-        // 设置 TTL（包括 0，使用 setTimeout(..., 0)）
+      cache.set(key, { value, timestamp: Date.now(), ttl: numTtl });
+
+      // 设置定时器（仅当 ttl 有效时）
+      if (numTtl !== undefined) {
         const timer = setTimeout(() => {
           this.delete(key);
         }, numTtl);
