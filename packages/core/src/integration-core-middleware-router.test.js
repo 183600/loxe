@@ -4,7 +4,7 @@ import { createMiddleware } from '../../middleware/src/index.js';
 import { createRouter } from '../../router/src/index.js';
 
 describe('Integration: Core + Middleware + Router', () => {
-  it('should apply middleware to route handlers', () => {
+  it('should apply middleware to route handlers', async () => {
     const core = createCore();
 
     core.register('middleware', createMiddleware, true);
@@ -35,10 +35,10 @@ describe('Integration: Core + Middleware + Router', () => {
             return handler(ctx);
           });
         },
-        handle(method, path, context) {
+        async handle(method, path, context) {
           const result = router.handle(method, path, context);
           // 如果结果是 Promise，需要等待
-          return result && typeof result.then === 'function' ? result : result;
+          return result && typeof result.then === 'function' ? await result : result;
         }
       };
     }, true);
@@ -49,12 +49,12 @@ describe('Integration: Core + Middleware + Router', () => {
       return { message: 'Hello' };
     });
 
-    const result = mwRouter.handle('GET', '/test');
+    const result = await mwRouter.handle('GET', '/test');
     expect(result.message).toBe('Hello');
     expect(logs).toEqual(['middleware: before', 'middleware: after']);
   });
 
-  it('should handle middleware errors in routes', () => {
+  it('should handle middleware errors in routes', async () => {
     const core = createCore();
 
     core.register('middleware', createMiddleware, true);
@@ -86,9 +86,9 @@ describe('Integration: Core + Middleware + Router', () => {
             }
           });
         },
-        handle(method, path, context) {
+        async handle(method, path, context) {
           const result = router.handle(method, path, context);
-          return result && typeof result.then === 'function' ? result : result;
+          return result && typeof result.then === 'function' ? await result : result;
         }
       };
     }, true);
@@ -98,14 +98,14 @@ describe('Integration: Core + Middleware + Router', () => {
     errorRouter.get('/error', (ctx) => ({ success: true }));
     errorRouter.get('/ok', (ctx) => ({ success: true }));
 
-    const errorResult = errorRouter.handle('GET', '/error');
+    const errorResult = await errorRouter.handle('GET', '/error');
     expect(errorResult.error).toBe('Middleware error');
 
-    const okResult = errorRouter.handle('GET', '/ok');
+    const okResult = await errorRouter.handle('GET', '/ok');
     expect(okResult.success).toBe(true);
   });
 
-  it('should support multiple middleware in routes', () => {
+  it('should support multiple middleware in routes', async () => {
     const core = createCore();
 
     core.register('middleware', createMiddleware, true);
@@ -142,9 +142,9 @@ describe('Integration: Core + Middleware + Router', () => {
             return handler({ ...ctx, mw1: mwCtx.mw1, mw2: mwCtx.mw2 });
           });
         },
-        handle(method, path, context) {
+        async handle(method, path, context) {
           const result = router.handle(method, path, context);
-          return result && typeof result.then === 'function' ? result : result;
+          return result && typeof result.then === 'function' ? await result : result;
         }
       };
     }, true);
@@ -159,7 +159,7 @@ describe('Integration: Core + Middleware + Router', () => {
       };
     });
 
-    const result = multiRouter.handle('GET', '/test');
+    const result = await multiRouter.handle('GET', '/test');
     expect(result.success).toBe(true);
     expect(result.mw1).toBe(true);
     expect(result.mw2).toBe(true);
@@ -171,7 +171,7 @@ describe('Integration: Core + Middleware + Router', () => {
     ]);
   });
 
-  it('should support authentication middleware in routes', () => {
+  it('should support authentication middleware in routes', async () => {
     const core = createCore();
 
     core.register('middleware', createMiddleware, true);
@@ -205,9 +205,9 @@ describe('Integration: Core + Middleware + Router', () => {
             return handler({ ...ctx, user: mwCtx.user });
           });
         },
-        handle(method, path) {
-          const result = router.handle(method, path);
-          return result && typeof result.then === 'function' ? result : result;
+        async handle(method, path, context) {
+          const result = router.handle(method, path, context);
+          return result && typeof result.then === 'function' ? await result : result;
         }
       };
     }, true);
@@ -218,10 +218,10 @@ describe('Integration: Core + Middleware + Router', () => {
       return { status: 200, user: ctx.user };
     });
 
-    const unauthorizedResult = authRouter.handle('GET', '/protected');
+    const unauthorizedResult = await authRouter.handle('GET', '/protected');
     expect(unauthorizedResult.status).toBe(401);
 
-    const authorizedResult = authRouter.handle('GET', '/protected', {
+    const authorizedResult = await authRouter.handle('GET', '/protected', {
       headers: { authorization: 'Bearer token123' }
     });
     expect(authorizedResult.status).toBe(200);
