@@ -21,8 +21,23 @@ export function createQueryEngine(ctx) {
     let dataSource;
     if (typeof from === 'string') {
       // 如果是从其他服务获取数据
-      const storageService = ctx.get('storage');
-      dataSource = storageService.getData(from);
+      // 尝试获取 storage 服务，如果不存在则尝试 data 服务
+      let dataService;
+      try {
+        dataService = ctx.get('storage');
+      } catch (e) {
+        try {
+          dataService = ctx.get('data');
+        } catch (e2) {
+          throw new Error('Neither "storage" nor "data" service is registered');
+        }
+      }
+      
+      if (typeof dataService.getData !== 'function') {
+        throw new Error('Data service must have a getData method');
+      }
+      
+      dataSource = dataService.getData(from);
     } else if (Array.isArray(from)) {
       // 如果直接传入数组数据
       dataSource = from;

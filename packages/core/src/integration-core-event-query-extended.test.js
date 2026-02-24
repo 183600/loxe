@@ -28,8 +28,31 @@ describe('Integration: Core + Event + Query', () => {
     }, true);
 
     // 注册数据服务（模拟存储）
-    core.register('data', () => {
+    core.register('data', (ctx) => {
       const dataStore = new Map();
+      
+      // 获取事件服务并监听数据变化事件
+      try {
+        const events = ctx.get('events');
+        events.on('data:changed', (event) => {
+          const { source, action, item } = event;
+          const currentData = dataStore.get(source) || [];
+          
+          if (action === 'add') {
+            currentData.push(item);
+            dataStore.set(source, currentData);
+          } else if (action === 'update') {
+            const index = currentData.findIndex(i => i.id === item.id);
+            if (index !== -1) {
+              currentData[index] = item;
+              dataStore.set(source, currentData);
+            }
+          }
+        });
+      } catch (e) {
+        // 如果事件服务不存在，忽略
+      }
+      
       return {
         setData(sourceName, data) {
           dataStore.set(sourceName, data);
@@ -79,27 +102,11 @@ describe('Integration: Core + Event + Query', () => {
       { id: 2, name: 'Mouse', price: 29, stock: 50 }
     ]);
 
-    // 监听数据变化事件
-    events.on('data:changed', (event) => {
-      // 更新数据存储
-      const { source, action, item } = event;
-      const currentData = data.getData(source);
-      
-      if (action === 'add') {
-        currentData.push(item);
-      } else if (action === 'update') {
-        const index = currentData.findIndex(i => i.id === item.id);
-        if (index !== -1) {
-          currentData[index] = item;
-        }
-      }
-    });
-
     // 初始查询
     let result = query({ from: 'products', where: { stock: { $gte: 10 } } });
     expect(result).toHaveLength(2);
 
-    // 添加新产品
+    // 添加新产品（data 服务会自动监听 data:changed 事件并更新）
     events.emit('data:changed', {
       source: 'products',
       action: 'add',
