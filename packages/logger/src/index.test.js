@@ -158,4 +158,128 @@ describe('Logger', () => {
     spyWarn.mockRestore();
     spyError.mockRestore();
   });
+
+  it('should handle empty string messages', () => {
+    const logger = createLogger(null, { level: 'debug' });
+    const spy = vi.spyOn(console, 'log');
+    
+    logger.info('');
+    logger.debug('');
+    
+    expect(spy).toHaveBeenCalledTimes(2);
+    spy.mockRestore();
+  });
+
+  it('should handle messages with special characters', () => {
+    const logger = createLogger(null, { level: 'info' });
+    const spy = vi.spyOn(console, 'log');
+    
+    logger.info('Message with "quotes"');
+    logger.info("Message with 'apostrophes'");
+    logger.info('Message with \\backslashes\\');
+    logger.info('Message with \t tabs \n and newlines');
+    
+    expect(spy).toHaveBeenCalledTimes(4);
+    spy.mockRestore();
+  });
+
+  it('should handle very long messages', () => {
+    const logger = createLogger(null, { level: 'info' });
+    const spy = vi.spyOn(console, 'log');
+    
+    const longMessage = 'x'.repeat(10000);
+    logger.info(longMessage);
+    
+    expect(spy).toHaveBeenCalledTimes(1);
+    const output = spy.mock.calls[0][0];
+    expect(output.length).toBeGreaterThan(10000);
+    spy.mockRestore();
+  });
+
+  it('should handle messages with unicode characters', () => {
+    const logger = createLogger(null, { level: 'info' });
+    const spy = vi.spyOn(console, 'log');
+    
+    logger.info('Hello 世界 🌍');
+    logger.info('Привет мир');
+    logger.info('مرحبا بالعالم');
+    
+    expect(spy).toHaveBeenCalledTimes(3);
+    spy.mockRestore();
+  });
+
+  it('should handle setLevel with invalid level', () => {
+    const logger = createLogger(null, { level: 'info' });
+    const originalLevel = logger.getLevel();
+    
+    // 设置无效的日志级别应该保持当前级别
+    logger.setLevel('invalid');
+    expect(logger.getLevel()).toBe(originalLevel);
+  });
+
+  it('should handle logging without meta object', () => {
+    const logger = createLogger(null, { level: 'info' });
+    const spy = vi.spyOn(console, 'log');
+    
+    logger.info('message without meta');
+    
+    expect(spy).toHaveBeenCalledTimes(1);
+    const output = spy.mock.calls[0][0];
+    expect(output).toContain('message without meta');
+    spy.mockRestore();
+  });
+
+  it('should handle logging with complex meta objects', () => {
+    const logger = createLogger(null, { level: 'info' });
+    const spy = vi.spyOn(console, 'log');
+    
+    const complexMeta = {
+      user: { id: 1, name: 'Alice', roles: ['admin', 'user'] },
+      request: { method: 'GET', path: '/api/users', headers: { 'content-type': 'application/json' } },
+      timestamp: Date.now()
+    };
+    
+    logger.info('complex meta', complexMeta);
+    
+    expect(spy).toHaveBeenCalledTimes(1);
+    const output = spy.mock.calls[0][0];
+    expect(output).toContain('complex meta');
+    expect(output).toContain('Alice');
+    spy.mockRestore();
+  });
+
+  it('should handle logging with null and undefined meta values', () => {
+    const logger = createLogger(null, { level: 'info' });
+    const spy = vi.spyOn(console, 'log');
+    
+    logger.info('null meta', null);
+    logger.info('undefined meta', undefined);
+    
+    expect(spy).toHaveBeenCalledTimes(2);
+    spy.mockRestore();
+  });
+
+  it('should handle prefix with special characters', () => {
+    const logger = createLogger(null, { level: 'info', prefix: '[APP-PROD]' });
+    const spy = vi.spyOn(console, 'log');
+    
+    logger.info('test message');
+    
+    expect(spy).toHaveBeenCalledTimes(1);
+    const output = spy.mock.calls[0][0];
+    expect(output).toContain('[APP-PROD]');
+    spy.mockRestore();
+  });
+
+  it('should handle empty prefix', () => {
+    const logger = createLogger(null, { level: 'info', prefix: '' });
+    const spy = vi.spyOn(console, 'log');
+    
+    logger.info('test message');
+    
+    expect(spy).toHaveBeenCalledTimes(1);
+    const output = spy.mock.calls[0][0];
+    expect(output).toContain('test message');
+    spy.mockRestore();
+  });
 });

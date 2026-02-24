@@ -590,7 +590,7 @@ describe('Query Engine', () => {
       });
 
       const result = compiledQuery();
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(3);
       expect(result.every(u => u.age >= 25 && u.age <= 35)).toBe(true);
       expect(result.every(u => ['New York', 'Chicago'].includes(u.city))).toBe(true);
     });

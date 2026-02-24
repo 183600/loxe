@@ -161,4 +161,152 @@ describe('Cache', () => {
     expect(cache.has('key4')).toBe(true);
     expect(cache.has('key5')).toBe(true);
   });
+
+  it('should handle TTL of zero', () => {
+    const cache = createCache();
+    
+    cache.set('key', 'value', 0);
+    expect(cache.get('key')).toBe('value');
+    
+    vi.advanceTimersByTime(0);
+    expect(cache.get('key')).toBeUndefined();
+  });
+
+  it('should handle very short TTL', () => {
+    const cache = createCache();
+    
+    cache.set('key', 'value', 1);
+    expect(cache.get('key')).toBe('value');
+    
+    vi.advanceTimersByTime(1);
+    expect(cache.get('key')).toBeUndefined();
+  });
+
+  it('should handle very long TTL', () => {
+    const cache = createCache();
+    
+    cache.set('key', 'value', 999999999);
+    expect(cache.get('key')).toBe('value');
+    
+    vi.advanceTimersByTime(1000);
+    expect(cache.get('key')).toBe('value');
+  });
+
+  it('should handle keys with special characters', () => {
+    const cache = createCache();
+    
+    cache.set('key:with:colons', 'value1');
+    cache.set('key.with.dots', 'value2');
+    cache.set('key-with-dashes', 'value3');
+    cache.set('key_with_underscores', 'value4');
+    cache.set('key/with/slashes', 'value5');
+    cache.set('key with spaces', 'value6');
+    
+    expect(cache.get('key:with:colons')).toBe('value1');
+    expect(cache.get('key.with.dots')).toBe('value2');
+    expect(cache.get('key-with-dashes')).toBe('value3');
+    expect(cache.get('key_with_underscores')).toBe('value4');
+    expect(cache.get('key/with/slashes')).toBe('value5');
+    expect(cache.get('key with spaces')).toBe('value6');
+  });
+
+  it('should handle empty string keys', () => {
+    const cache = createCache();
+    
+    cache.set('', 'empty-key-value');
+    expect(cache.get('')).toBe('empty-key-value');
+    expect(cache.has('')).toBe(true);
+  });
+
+  it('should handle numeric keys', () => {
+    const cache = createCache();
+    
+    cache.set(123, 'numeric-key-value');
+    cache.set(456, { data: 'object' });
+    
+    expect(cache.get(123)).toBe('numeric-key-value');
+    expect(cache.get(456)).toEqual({ data: 'object' });
+  });
+
+  it('should handle deleting non-existent keys gracefully', () => {
+    const cache = createCache();
+    
+    cache.set('existing', 'value');
+    
+    // 删除不存在的键不应该抛出错误
+    expect(() => cache.delete('nonexistent')).not.toThrow();
+    
+    // 现有键应该仍然存在
+    expect(cache.has('existing')).toBe(true);
+  });
+
+  it('should handle large number of entries', () => {
+    const cache = createCache();
+    
+    const count = 1000;
+    for (let i = 0; i < count; i++) {
+      cache.set(`key${i}`, `value${i}`);
+    }
+    
+    expect(cache.size()).toBe(count);
+    expect(cache.get('key0')).toBe('value0');
+    expect(cache.get(`key${count - 1}`)).toBe(`value${count - 1}`);
+  });
+
+  it('should handle clearing cache with TTL timers', () => {
+    const cache = createCache();
+    
+    cache.set('key1', 'value1', 1000);
+    cache.set('key2', 'value2', 2000);
+    cache.set('key3', 'value3', 3000);
+    
+    expect(cache.size()).toBe(3);
+    
+    cache.clear();
+    
+    expect(cache.size()).toBe(0);
+    expect(cache.get('key1')).toBeUndefined();
+    expect(cache.get('key2')).toBeUndefined();
+    expect(cache.get('key3')).toBeUndefined();
+  });
+
+  it('should handle setting same key multiple times with different TTLs', () => {
+    const cache = createCache();
+    
+    cache.set('key', 'value1', 1000);
+    vi.advanceTimersByTime(500);
+    expect(cache.get('key')).toBe('value1');
+    
+    cache.set('key', 'value2', 1000);
+    vi.advanceTimersByTime(600);
+    expect(cache.get('key')).toBe('value2');
+    
+    vi.advanceTimersByTime(500);
+    expect(cache.get('key')).toBeUndefined();
+  });
+
+  it('should handle setting same key without TTL after setting with TTL', () => {
+    const cache = createCache();
+    
+    cache.set('key', 'value1', 1000);
+    vi.advanceTimersByTime(500);
+    expect(cache.get('key')).toBe('value1');
+    
+    cache.set('key', 'value2');
+    vi.advanceTimersByTime(600);
+    expect(cache.get('key')).toBe('value2');
+  });
+
+  it('should handle getting keys from empty cache', () => {
+    const cache = createCache();
+    
+    const keys = cache.keys();
+    expect(keys).toEqual([]);
+  });
+
+  it('should handle size of empty cache', () => {
+    const cache = createCache();
+    
+    expect(cache.size()).toBe(0);
+  });
 });

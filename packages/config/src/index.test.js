@@ -99,4 +99,121 @@ describe('Config', () => {
     
     process.env = originalEnv;
   });
+
+  it('should handle merge with nested objects', () => {
+    const originalEnvHost = process.env.DATABASE_HOST;
+    const originalEnvPort = process.env.DATABASE_PORT;
+    delete process.env.DATABASE_HOST;
+    delete process.env.DATABASE_PORT;
+    
+    try {
+      const config = createConfig({
+        database: {
+          host: 'localhost',
+          port: 5432
+        }
+      });
+      
+      config.merge({
+        database: {
+          port: 3306,
+          username: 'admin'
+        }
+      });
+      
+      expect(config.get('database.host')).toBe('localhost');
+      expect(config.get('database.port')).toBe(3306);
+      expect(config.get('database.username')).toBe('admin');
+    } finally {
+      if (originalEnvHost) process.env.DATABASE_HOST = originalEnvHost;
+      if (originalEnvPort) process.env.DATABASE_PORT = originalEnvPort;
+    }
+  });
+
+  it('should handle merge with array values', () => {
+    const config = createConfig({
+      allowedOrigins: ['http://localhost:3000']
+    });
+    
+    config.merge({
+      allowedOrigins: ['http://localhost:8080', 'https://example.com']
+    });
+    
+    const origins = config.get('allowedOrigins');
+    expect(origins).toEqual(['http://localhost:8080', 'https://example.com']);
+  });
+
+  it('should handle delete of non-existent keys gracefully', () => {
+    const config = createConfig({ key: 'value' });
+    
+    expect(() => config.delete('nonexistent')).not.toThrow();
+    expect(config.has('key')).toBe(true);
+  });
+
+  it('should handle keys with special characters', () => {
+    const config = createConfig();
+    
+    config.set('key:with:colons', 'value1');
+    config.set('key.with.dots', 'value2');
+    config.set('key-with-dashes', 'value3');
+    config.set('key_with_underscores', 'value4');
+    
+    expect(config.get('key:with:colons')).toBe('value1');
+    expect(config.get('key.with.dots')).toBe('value2');
+    expect(config.get('key-with-dashes')).toBe('value3');
+    expect(config.get('key_with_underscores')).toBe('value4');
+  });
+
+  it('should handle empty string keys', () => {
+    const config = createConfig();
+    
+    config.set('', 'empty-key-value');
+    expect(config.get('')).toBe('empty-key-value');
+    expect(config.has('')).toBe(true);
+  });
+
+  it('should handle numeric keys', () => {
+    const config = createConfig();
+    
+    config.set(123, 'numeric-key-value');
+    expect(config.get(123)).toBe('numeric-key-value');
+    expect(config.has(123)).toBe(true);
+  });
+
+  it('should return undefined for non-existent keys without default', () => {
+    const config = createConfig();
+    
+    expect(config.get('nonexistent')).toBeUndefined();
+  });
+
+  it('should handle all() returning copy of config', () => {
+    const config = createConfig({ a: 1, b: 2 });
+    
+    const all1 = config.all();
+    const all2 = config.all();
+    
+    expect(all1).toEqual({ a: 1, b: 2 });
+    expect(all2).toEqual({ a: 1, b: 2 });
+    expect(all1).not.toBe(all2);
+    
+    // 修改副本不应该影响原始配置
+    all1.c = 3;
+    expect(config.get('c')).toBeUndefined();
+  });
+
+  it('should handle merge with empty object', () => {
+    const config = createConfig({ a: 1, b: 2 });
+    
+    config.merge({});
+    
+    expect(config.get('a')).toBe(1);
+    expect(config.get('b')).toBe(2);
+  });
+
+  it('should handle set overwriting existing values', () => {
+    const config = createConfig({ key: 'old-value' });
+    
+    config.set('key', 'new-value');
+    expect(config.get('key')).toBe('new-value');
+  });
 });

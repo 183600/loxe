@@ -272,4 +272,117 @@ describe('Core', () => {
     expect(core.get('service2').id).toBe(2);
     expect(core.get('service3').id).toBe(3);
   });
+
+  it('should pass context to factory functions correctly', () => {
+    const core = createCore();
+    
+    core.register('base', () => ({ value: 10 }), true);
+    core.register('dependent', (ctx) => {
+      const base = ctx.get('base');
+      return { value: base.value * 2 };
+    }, true);
+    
+    const dependent = core.get('dependent');
+    expect(dependent.value).toBe(20);
+  });
+
+  it('should handle deep dependency chains', () => {
+    const core = createCore();
+    
+    core.register('serviceA', () => ({ data: 'A' }), true);
+    core.register('serviceB', (ctx) => {
+      const a = ctx.get('serviceA');
+      return { data: a.data + '-B' };
+    }, true);
+    core.register('serviceC', (ctx) => {
+      const b = ctx.get('serviceB');
+      return { data: b.data + '-C' };
+    }, true);
+    core.register('serviceD', (ctx) => {
+      const c = ctx.get('serviceC');
+      return { data: c.data + '-D' };
+    }, true);
+    
+    const d = core.get('serviceD');
+    expect(d.data).toBe('A-B-C-D');
+  });
+
+  it('should maintain service registration order in list', () => {
+    const core = createCore();
+    
+    core.register('zebra', () => ({}));
+    core.register('apple', () => ({}));
+    core.register('banana', () => ({}));
+    core.register('mango', () => ({}));
+    
+    const services = core.list();
+    expect(services).toEqual(['zebra', 'apple', 'banana', 'mango']);
+  });
+
+  it('should handle service names with special characters', () => {
+    const core = createCore();
+    
+    core.register('service:with:colons', () => ({ id: 1 }), true);
+    core.register('service.with.dots', () => ({ id: 2 }), true);
+    core.register('service-with-dashes', () => ({ id: 3 }), true);
+    core.register('service_with_underscores', () => ({ id: 4 }), true);
+    
+    expect(core.get('service:with:colons').id).toBe(1);
+    expect(core.get('service.with.dots').id).toBe(2);
+    expect(core.get('service-with-dashes').id).toBe(3);
+    expect(core.get('service_with_underscores').id).toBe(4);
+  });
+
+  it('should handle removing non-existent service gracefully', () => {
+    const core = createCore();
+    
+    core.register('existing', () => ({ id: 1 }), true);
+    
+    // 移除不存在的服务不应该抛出错误
+    expect(() => core.remove('nonexistent')).not.toThrow();
+    
+    // 现有服务应该仍然存在
+    expect(core.has('existing')).toBe(true);
+  });
+
+  it('should handle getting service with circular dependency safely', () => {
+    const core = createCore();
+    
+    core.register('serviceA', (ctx) => {
+      return {
+        name: 'A',
+        getB: () => ctx.get('serviceB')
+      };
+    }, true);
+    
+    core.register('serviceB', (ctx) => {
+      return {
+        name: 'B',
+        getA: () => ctx.get('serviceA')
+      };
+    }, true);
+    
+    const a = core.get('serviceA');
+    const b = a.getB();
+    const a2 = b.getA();
+    
+    expect(a.name).toBe('A');
+    expect(b.name).toBe('B');
+    expect(a2.name).toBe('A');
+    expect(a2).toBe(a);
+  });
+
+  it('should handle service factory returning same instance for singleton', () => {
+    const core = createCore();
+    
+    const instance = { id: 42 };
+    core.register('singleton', () => instance, true);
+    
+    const a = core.get('singleton');
+    const b = core.get('singleton');
+    
+    expect(a).toBe(instance);
+    expect(b).toBe(instance);
+    expect(a).toBe(b);
+  });
 });

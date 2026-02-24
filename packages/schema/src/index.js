@@ -56,9 +56,12 @@ function validateData(data, schema) {
   
   // Check type
   if (schema.type) {
-    const dataType = Array.isArray(data) ? 'array' : typeof data;
-    if (dataType !== schema.type) {
-      errors.push(`Expected type '${schema.type}', but got '${dataType}'`);
+    // Allow null and undefined values to pass type check (valid for non-required fields)
+    if (data !== null && data !== undefined) {
+      const dataType = Array.isArray(data) ? 'array' : typeof data;
+      if (dataType !== schema.type) {
+        errors.push(`Expected type '${schema.type}', but got '${dataType}'`);
+      }
     }
   }
   
