@@ -1,45 +1,53 @@
-name: iflow-14pkgs-autoloop
+name: iflow-js-autoloop
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 concurrency:
-  group: iflow-14pkgs-autoloop-${{ github.ref }}
+  group: iflow-autoflow-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
-  autoloop:
+  run-js-5h:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
+      RUN_HOURS: 5
       WORK_BRANCH: main
-      RUN_HOURS: 4
+
+      RELEASE_MARKER_FILE: .git/iflow_release_tag
+
       IFLOW_API_KEY: ${{ secrets.IFLOW_API_KEY }}
       IFLOW_BASE_URL: https://maas-api.cn-huabei-1.xf-yun.com/v2
       IFLOW_MODEL_NAME: xopglm47blth2
+      
       GH_TOKEN: ${{ secrets.IFLOW_PAT }}
-      MAX_LOOPS: 10
 
     steps:
-      - name: Checkout (PAT)
+      - name: Checkout with PAT
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.IFLOW_PAT }}
           fetch-depth: 0
 
-      - name: Git identity
+      - name: Ensure branch and git identity
         shell: bash
         run: |
           set -euo pipefail
+          BRANCH="${WORK_BRANCH:-main}"
+          git fetch origin "${BRANCH}" --prune
+          git checkout -B "${BRANCH}" "origin/${BRANCH}"
           git config user.name "iflow-bot"
           git config user.email "iflow-bot@users.noreply.github.com"
 
+      # --- 修改开始：适配 Bun 环境 ---
+      
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -49,53 +57,54 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm i -g @iflow-ai/iflow-cli@latest
+          bun install -g @iflow-ai/iflow-cli@latest
           iflow --version
 
-      - name: Install GNU Parallel
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y parallel
-
-      - name: Verify secrets
+      - name: Verify IFLOW_API_KEY
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${IFLOW_API_KEY:-}" || (echo "Missing IFLOW_API_KEY" && exit 1)
+          test -n "${IFLOW_API_KEY:-}" || { echo "Missing IFLOW_API_KEY secret"; exit 1; }
 
-      - name: Make scripts executable
-        shell: bash
-        run: |
-          chmod +x scripts/iflow_14pkgs_loop.sh
-          chmod +x scripts/iflow_pkg_loop.sh
-
-      - name: Run loop (timeboxed)
+      - name: Install Project Dependencies (Bun)
         shell: bash
         run: |
           set -euo pipefail
-          timeout --signal=TERM $(( RUN_HOURS * 3600 )) bash scripts/iflow_14pkgs_loop.sh || true
+          bun install
 
-      - name: Final commit & push
+      # --- 修改结束 ---
+
+      - name: Make loop script executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/js_loop.sh
+
+      - name: Run for ${{ env.RUN_HOURS }} hours
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM $(( RUN_HOURS * 3600 )) bash scripts/js_loop.sh || true
+
+      - name: Commit & push to GitHub
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           BRANCH="${WORK_BRANCH:-main}"
+
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "ci: 14pkgs autoloop batch (run $GITHUB_RUN_ID)" || true
+            git commit -m "ci: ${RUN_HOURS}h batch update (run $GITHUB_RUN_ID)" || true
           fi
-          git fetch origin "${BRANCH}" --prune
-          git push origin "HEAD:${BRANCH}" --follow-tags --force-with-lease
 
-      - name: Trigger next loop
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Triggering next workflow run..."
-          gh workflow run iflow-14pkgs.yml \
-            --repo "${{ github.repository }}" \
-            --ref main
-          echo "Next run triggered successfully."
+          MARKER_FILE="${RELEASE_MARKER_FILE}"
+          if [[ ! -f "${MARKER_FILE}" ]]; then
+            GIT_DIR_REAL="$(git rev-parse --git-dir 2>/dev/null || echo ".git")"
+            MARKER_FILE="${GIT_DIR_REAL%/}/iflow_release_tag"
+          fi
+          if [[ -f "${MARKER_FILE}" ]]; then
+            echo "Release tag prepared: $(cat "${MARKER_FILE}")"
+          fi
+
+          git push origin "HEAD:${BRANCH}" --follow-tags --force
