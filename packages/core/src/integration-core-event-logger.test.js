@@ -5,10 +5,12 @@ import { createLogger } from '../../logger/src/index.js';
 
 describe('Integration: Core + Event + Logger', () => {
   let core;
-  let consoleSpy;
+  let logSpy, warnSpy, errorSpy;
 
   beforeEach(() => {
-    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     core = createCore();
 
     core.register('events', () => createEventEmitter(), true);
@@ -16,7 +18,7 @@ describe('Integration: Core + Event + Logger', () => {
   });
 
   afterEach(() => {
-    consoleSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 
   it('should provide both event and logger services through core', () => {
@@ -39,7 +41,7 @@ describe('Integration: Core + Event + Logger', () => {
 
     events.emit('test:event', { message: 'Hello' });
 
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 
   it('should support service that uses both events and logger', () => {
@@ -60,7 +62,7 @@ describe('Integration: Core + Event + Logger', () => {
     const result = dataService.saveData({ id: 1, name: 'Test' });
 
     expect(result.success).toBe(true);
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 
   it('should handle event errors with logging', () => {
@@ -73,7 +75,7 @@ describe('Integration: Core + Event + Logger', () => {
 
     events.emit('error:event', { error: 'Something went wrong' });
 
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('should support event-driven logging', () => {
@@ -90,7 +92,8 @@ describe('Integration: Core + Event + Logger', () => {
     events.emit('log:info', { message: 'Info message', meta: { key: 'value' } });
     events.emit('log:warn', { message: 'Warning message', meta: { key: 'value' } });
 
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
   });
 
   it('should support logging event listener lifecycle', () => {
@@ -109,7 +112,7 @@ describe('Integration: Core + Event + Logger', () => {
     logger.info('Removing event listener', { event: 'user:action' });
     events.off('user:action', listener);
 
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 
   it('should support multiple services with event and logger dependencies', () => {
@@ -141,6 +144,6 @@ describe('Integration: Core + Event + Logger', () => {
     const result = userService.login('testuser');
 
     expect(result.success).toBe(true);
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 });

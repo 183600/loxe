@@ -64,7 +64,7 @@ export function createConfig(ctx, initialConfig = {}) {
       }
       // 尝试从环境变量获取
       const envKey = key.toUpperCase().replace(/\./g, '_');
-      if (typeof process !== 'undefined' && process.env && process.env[envKey]) {
+      if (typeof process !== 'undefined' && process.env && envKey in process.env) {
         return process.env[envKey];
       }
       return defaultValue;

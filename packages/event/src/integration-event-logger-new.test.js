@@ -1,20 +1,22 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createEventEmitter } from './index.js';
 import { createLogger } from '../../logger/src/index.js';
 
 describe('Integration: Event + Logger', () => {
   let events;
   let logger;
-  let consoleSpy;
+  let logSpy, warnSpy, errorSpy;
 
   beforeEach(() => {
-    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     events = createEventEmitter();
     logger = createLogger(undefined, { level: 'info' });
   });
 
   afterEach(() => {
-    consoleSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 
   it('should log event emissions', () => {
@@ -28,7 +30,7 @@ describe('Integration: Event + Logger', () => {
     events.emit('test:event', { message: 'Hello' });
 
     expect(eventLog).toHaveLength(1);
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 
   it('should log event errors', () => {
@@ -42,7 +44,7 @@ describe('Integration: Event + Logger', () => {
     events.emit('error:event', { error: 'Something went wrong' });
 
     expect(errorLog).toHaveLength(1);
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('should support event logging with metadata', () => {
@@ -64,7 +66,7 @@ describe('Integration: Event + Logger', () => {
     });
 
     expect(eventLog).toHaveLength(1);
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 
   it('should support debug logging for event system', () => {
@@ -80,7 +82,7 @@ describe('Integration: Event + Logger', () => {
     events.emit('debug:event', { debugInfo: 'test' });
 
     expect(eventLog).toHaveLength(1);
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 
   it('should log event listener registration', () => {
@@ -93,7 +95,7 @@ describe('Integration: Event + Logger', () => {
     events.on('api:request', listener);
     events.emit('api:request', { url: '/api/users' });
 
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 
   it('should log event listener removal', () => {
@@ -107,6 +109,6 @@ describe('Integration: Event + Logger', () => {
     events.off('temp:event', listener);
     logger.info('Event listener removed', { event: 'temp:event' });
 
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 });

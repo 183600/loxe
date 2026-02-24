@@ -102,7 +102,8 @@ describe('Config Environment Variable Tests', () => {
     expect(config.get('bool.false')).toBe('false');
   });
 
-  it('should handle JSON-like environment variables as strings', (Note: JSON parsing is not implemented in createConfig) => {
+  // Note: JSON parsing is not implemented in createConfig
+  it('should handle JSON-like environment variables as strings', () => {
     process.env.JSON_VAR = '{"key":"value"}';
     
     const config = createConfig();

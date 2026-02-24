@@ -22,11 +22,20 @@ export function createCache(ctx) {
 
       cache.set(key, { value, timestamp: Date.now() });
 
-      // 设置 TTL
-      if (typeof ttl === 'number') {
+      // 处理 TTL：转换为数字，处理边界情况
+      if (ttl !== undefined && ttl !== null) {
+        const numTtl = Number(ttl);
+        
+        // TTL 为负数时立即过期
+        if (numTtl < 0) {
+          this.delete(key);
+          return this;
+        }
+        
+        // 设置 TTL（包括 0，使用 setTimeout(..., 0)）
         const timer = setTimeout(() => {
           this.delete(key);
-        }, ttl);
+        }, numTtl);
         timers.set(key, timer);
       }
 

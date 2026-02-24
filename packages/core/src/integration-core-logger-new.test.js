@@ -4,16 +4,18 @@ import { createLogger } from '../../logger/src/index.js';
 
 describe('Integration: Core + Logger', () => {
   let core;
-  let consoleSpy;
+  let logSpy, warnSpy, errorSpy;
 
   beforeEach(() => {
     core = createCore();
     core.register('logger', () => createLogger(undefined, { level: 'info' }), true);
-    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    consoleSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 
   it('should provide logger service through core', () => {
@@ -36,8 +38,9 @@ describe('Integration: Core + Logger', () => {
     logger.warn('Test warn message');
     logger.error('Test error message');
     
-    expect(consoleSpy).toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledTimes(2); // info and warn use console.log
+    expect(logSpy).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('should respect log level filtering', () => {
@@ -46,7 +49,7 @@ describe('Integration: Core + Logger', () => {
     logger.debug('Debug message');
     logger.info('Info message');
     
-    expect(consoleSpy).toHaveBeenCalledTimes(1); // Only info should be logged
+    expect(logSpy).toHaveBeenCalledTimes(1); // Only info should be logged
   });
 
   it('should support service with logger dependency', () => {
@@ -64,7 +67,7 @@ describe('Integration: Core + Logger', () => {
     const result = dataService.processData([1, 2, 3]);
     
     expect(result).toEqual([2, 4, 6]);
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
   });
 
   it('should allow changing log level dynamically', () => {
@@ -76,6 +79,6 @@ describe('Integration: Core + Logger', () => {
     expect(logger.getLevel()).toBe('debug');
     
     logger.debug('Debug message after level change');
-    expect(consoleSpy).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledTimes(1);
   });
 });

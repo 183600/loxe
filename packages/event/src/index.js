@@ -35,18 +35,32 @@ export function createEventEmitter(ctx) {
         }
       }
       
-      // 通配符匹配 (如 count:* 匹配 count:click)
+      // 通配符匹配 (如 count:* 匹配 count:click, api:* 匹配 api:request:get, api:*:* 匹配 api:v1:users)
       const eventStr = String(event);
+      const eventParts = eventStr.split(':');
+      
       for (const [key, callbacks] of listeners.entries()) {
         const keyStr = String(key);
-        if (keyStr.endsWith('*')) {
-          const pattern = keyStr.slice(0, -1);
-          if (eventStr.startsWith(pattern)) {
-            for (const callback of callbacks) {
-              try {
-                callback(event, data);
-              } catch (error) {
-                errors.push(error);
+        if (keyStr.includes('*')) {
+          const patternParts = keyStr.split(':');
+          
+          // 检查是否匹配：模式段数必须小于等于事件段数
+          if (patternParts.length <= eventParts.length) {
+            let matches = true;
+            for (let i = 0; i < patternParts.length; i++) {
+              if (patternParts[i] !== '*' && patternParts[i] !== eventParts[i]) {
+                matches = false;
+                break;
+              }
+            }
+            
+            if (matches) {
+              for (const callback of callbacks) {
+                try {
+                  callback(event, data);
+                } catch (error) {
+                  errors.push(error);
+                }
               }
             }
           }
