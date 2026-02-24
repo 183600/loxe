@@ -25,10 +25,42 @@ export function createConfig(ctx, initialConfig = {}) {
   //   console.log('[Config Debug] config:', config);
   // }
 
+  // 深度合并函数
+  const deepMerge = (target, source) => {
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key]) &&
+          target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+        deepMerge(target[key], source[key]);
+      } else {
+        target[key] = source[key];
+      }
+    }
+  };
+
+  // 通过点号路径获取嵌套值
+  const getByPath = (obj, path) => {
+    const keys = path.split('.');
+    let current = obj;
+    for (const key of keys) {
+      if (current && typeof current === 'object' && key in current) {
+        current = current[key];
+      } else {
+        return undefined;
+      }
+    }
+    return current;
+  };
+
   const configApi = {
     get(key, defaultValue = undefined) {
+      // 先尝试直接获取
       if (key in config) {
         return config[key];
+      }
+      // 尝试通过点号路径获取嵌套值
+      const nestedValue = getByPath(config, key);
+      if (nestedValue !== undefined) {
+        return nestedValue;
       }
       // 尝试从环境变量获取
       const envKey = key.toUpperCase().replace(/\./g, '_');
@@ -44,7 +76,10 @@ export function createConfig(ctx, initialConfig = {}) {
     },
 
     has(key) {
-      return key in config;
+      if (key in config) {
+        return true;
+      }
+      return getByPath(config, key) !== undefined;
     },
 
     delete(key) {
@@ -57,7 +92,7 @@ export function createConfig(ctx, initialConfig = {}) {
     },
 
     merge(obj) {
-      Object.assign(config, obj);
+      deepMerge(config, obj);
       return this;
     }
   };

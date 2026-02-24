@@ -23,7 +23,7 @@ export function createCache(ctx) {
       cache.set(key, { value, timestamp: Date.now() });
 
       // 设置 TTL
-      if (ttl && typeof ttl === 'number') {
+      if (typeof ttl === 'number') {
         const timer = setTimeout(() => {
           this.delete(key);
         }, ttl);
