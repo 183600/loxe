@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createCore } from '../../core/src/index.js';
 import { registerSchema, validate as schemaValidate, clearAllSchemas } from './index.js';
 import { createStorage } from '../../storage/src/index.js';

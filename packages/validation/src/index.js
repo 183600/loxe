@@ -14,8 +14,8 @@ export function createValidation(ctx) {
     email: (value) => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
     min: (value, min) => typeof value === 'number' && value >= min,
     max: (value, max) => typeof value === 'number' && value <= max,
-    minLength: (value, min) => typeof value === 'string' && value.length >= min,
-    maxLength: (value, max) => typeof value === 'string' && value.length <= max
+    minLength: (value, min) => (typeof value === 'string' || Array.isArray(value)) && value.length >= min,
+    maxLength: (value, max) => (typeof value === 'string' || Array.isArray(value)) && value.length <= max
   };
 
   const validate = (value, rules) => {
