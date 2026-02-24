@@ -133,6 +133,8 @@ export class MemoryTransaction extends ITransaction {
     this.changes = new Map();
     this.isCommitted = false;
     this.isRolledBack = false;
+    // 创建快照以确保事务隔离
+    this.snapshot = new Map(storage.data);
   }
 
   async get(key) {
@@ -144,8 +146,8 @@ export class MemoryTransaction extends ITransaction {
       return value === undefined ? null : value;
     }
     
-    // 否则从存储中获取
-    return this.storage.data.get(key) || null;
+    // 否则从快照中获取（而不是直接从 storage.data）
+    return this.snapshot.get(key) || null;
   }
 
   async put(key, value) {
