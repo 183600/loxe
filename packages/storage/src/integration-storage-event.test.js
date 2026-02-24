@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createEventEmitter } from './index.js';
-import { createStorage } from '../../storage/src/index.js';
+import { createEventEmitter } from '../../event/src/index.js';
+import { createStorage } from './index.js';
 
 describe('Event + Storage Integration', () => {
   let event;

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createLogger } from './index.js';
-import { createStorage } from '../../storage/src/index.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createLogger } from '../../logger/src/index.js';
+import { createStorage } from './index.js';
 
 describe('Logger + Storage Integration', () => {
   let logger;
