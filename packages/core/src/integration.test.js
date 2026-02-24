@@ -1,213 +1,49 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createCore } from './index.js';
+import { createStorage, MemoryStorage } from '../../storage/src/index.js';
+import { createQueryEngine } from '../../query/src/index.js';
 
-// 模拟其他库的实现
-function createConfig(ctx, initialConfig = {}) {
-  const config = { ...initialConfig };
-  return {
-    get(key, defaultValue = undefined) {
-      if (key in config) return config[key];
-      return defaultValue;
-    },
-    set(key, value) {
-      config[key] = value;
-      return this;
-    },
-    has(key) {
-      return key in config;
-    },
-    delete(key) {
-      delete config[key];
-      return this;
-    },
-    all() {
-      return { ...config };
-    },
-    merge(obj) {
-      Object.assign(config, obj);
-      return this;
-    }
-  };
-}
-
-function createLogger(ctx, options = {}) {
-  const { level = 'info', prefix = '' } = options;
-  const levels = { debug: 0, info: 1, warn: 2, error: 3 };
-  let currentLevel = level;
-
-  return {
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    setLevel: (newLevel) => { currentLevel = newLevel; },
-    getLevel: () => currentLevel
-  };
-}
-
-function createEventEmitter(ctx) {
-  const listeners = new Map();
-  return {
-    on(event, callback) {
-      if (!listeners.has(event)) {
-        listeners.set(event, new Set());
-      }
-      listeners.get(event).add(callback);
-      return () => this.off(event, callback);
-    },
-    off(event, callback) {
-      if (listeners.has(event)) {
-        listeners.get(event).delete(callback);
-      }
-    },
-    emit(event, data) {
-      if (listeners.has(event)) {
-        for (const callback of listeners.get(event)) {
-          callback(data);
-        }
-      }
-    },
-    once(event, callback) {
-      const wrapper = (data) => {
-        callback(data);
-        this.off(event, wrapper);
-      };
-      return this.on(event, wrapper);
-    },
-    removeAllListeners(event) {
-      if (event) {
-        listeners.delete(event);
-      } else {
-        listeners.clear();
-      }
-    }
-  };
-}
-
-function createStorage(ctx) {
-  class MemoryStorage {
-    constructor() {
-      this.data = new Map();
-      this.isOpen = false;
-    }
-
-    async open() {
-      this.isOpen = true;
-    }
-
-    async close() {
-      this.isOpen = false;
-    }
-
-    async get(key) {
-      return this.data.get(key) || null;
-    }
-
-    async put(key, value) {
-      // 如果值是数组，追加到现有数组
-      const existing = this.data.get(key);
-      if (Array.isArray(value) && Array.isArray(existing)) {
-        this.data.set(key, [...existing, ...value]);
-      } else {
-        this.data.set(key, value);
-      }
-    }
-
-    async del(key) {
-      return this.data.delete(key);
-    }
-
-    async scan(options = {}) {
-      const { prefix = '', limit } = options;
-      const results = [];
-      for (const [key, value] of this.data.entries()) {
-        if (key.startsWith(prefix)) {
-          results.push({ key, value });
-          if (limit && results.length >= limit) break;
-        }
-      }
-      return results;
-    }
-  }
-
-  const storage = new MemoryStorage();
-  storage.open();
-  return storage;
-}
-
-function createQueryEngine(ctx) {
-  const query = function query(options) {
-    const { from, where } = options;
-    const storage = ctx.get('storage');
-    let dataSource = storage.data.get(from) || [];
-
-    if (!where) return dataSource;
-
-    return dataSource.filter(item => {
-      for (const [key, value] of Object.entries(where)) {
-        if (typeof value === 'object' && value !== null) {
-          for (const [operator, operand] of Object.entries(value)) {
-            switch (operator) {
-              case '$gte':
-                if (item[key] < operand) return false;
-                break;
-              case '$gt':
-                if (item[key] <= operand) return false;
-                break;
-              case '$lte':
-                if (item[key] > operand) return false;
-                break;
-              case '$lt':
-                if (item[key] >= operand) return false;
-                break;
-              case '$eq':
-                if (item[key] !== operand) return false;
-                break;
-              case '$ne':
-                if (item[key] === operand) return false;
-                break;
-            }
-          }
-        } else if (item[key] !== value) {
-          return false;
-        }
-      }
-      return true;
-    });
-  };
-  return query;
-}
-
-describe('库间交互测试', () => {
+describe('Integration: Core + Storage + Query', () => {
   let core;
-  let config;
-  let logger;
-  let emitter;
   let storage;
   let query;
 
   beforeEach(async () => {
-    // 创建核心容器
     core = createCore();
 
-    // 注册服务
-    core.register('config', (ctx) => createConfig(ctx, { appId: 'test-app', debug: true }), true);
-    core.register('logger', (ctx) => {
-      const config = ctx.get('config');
-      const level = config.get('debug') ? 'debug' : 'info';
-      return createLogger(ctx, { level, prefix: 'TestApp' });
-    }, true);
-    core.register('events', (ctx) => createEventEmitter(ctx), true);
-    core.register('storage', (ctx) => {
-      return createStorage(ctx);
-    }, true);
-    core.register('query', (ctx) => createQueryEngine(ctx), true);
+    // 注册存储服务
+    storage = new MemoryStorage();
+    await storage.open();
+    core.register('storage', () => ({
+      getData: (sourceName) => {
+        // 从存储中获取数据
+        const data = [];
+        for (const [key, value] of storage.data.entries()) {
+          if (key.startsWith(`${sourceName}:`)) {
+            const id = key.split(':')[1];
+            data.push({ id, ...value });
+          }
+        }
+        return data;
+      },
+      setData: (data) => {
+        // 存储数据（简化实现）
+        if (Array.isArray(data)) {
+          data.forEach(item => {
+            if (item.id) {
+              storage.put(`users:${item.id}`, item);
+            }
+          });
+        }
+      },
+      put: async (key, value) => storage.put(key, value),
+      get: async (key) => storage.get(key),
+      del: async (key) => storage.del(key)
+    }), true);
 
-    // 获取服务实例
-    config = core.get('config');
-    logger = core.get('logger');
-    emitter = core.get('events');
-    storage = core.get('storage');
+    // 注册查询引擎
+    core.register('query', () => createQueryEngine(core), true);
+
     query = core.get('query');
   });
 
@@ -217,104 +53,106 @@ describe('库间交互测试', () => {
     }
   });
 
-  it('应该通过 Core 获取所有服务', () => {
-    expect(core.has('config')).toBe(true);
-    expect(core.has('logger')).toBe(true);
-    expect(core.has('events')).toBe(true);
+  it('should query data stored in storage', async () => {
+    // 存储一些测试数据
+    await storage.put('users:1', { name: 'Alice', age: 30, city: 'New York' });
+    await storage.put('users:2', { name: 'Bob', age: 25, city: 'Los Angeles' });
+    await storage.put('users:3', { name: 'Charlie', age: 35, city: 'New York' });
+
+    // 查询所有用户
+    const allUsers = query({ from: 'users' });
+    expect(allUsers).toHaveLength(3);
+
+    // 查询特定城市的用户
+    const nyUsers = query({ from: 'users', where: { city: 'New York' } });
+    expect(nyUsers).toHaveLength(2);
+    expect(nyUsers.every(u => u.city === 'New York')).toBe(true);
+
+    // 查询年龄大于 30 的用户
+    const olderUsers = query({ from: 'users', where: { age: { $gt: 30 } } });
+    expect(olderUsers).toHaveLength(1);
+    expect(olderUsers[0].name).toBe('Charlie');
+  });
+
+  it('should handle complex queries across stored data', async () => {
+    // 存储测试数据
+    await storage.put('products:1', { name: 'Laptop', price: 999, category: 'electronics', inStock: true });
+    await storage.put('products:2', { name: 'Mouse', price: 29, category: 'electronics', inStock: true });
+    await storage.put('products:3', { name: 'Book', price: 15, category: 'books', inStock: false });
+    await storage.put('products:4', { name: 'Keyboard', price: 79, category: 'electronics', inStock: true });
+
+    // 查询电子产品中价格在 50-1000 之间且有库存的
+    const result = query({
+      from: 'products',
+      where: (item) =>
+        item.category === 'electronics' &&
+        item.price >= 50 &&
+        item.price <= 1000 &&
+        item.inStock
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result.map(p => p.name)).toEqual(expect.arrayContaining(['Laptop', 'Keyboard']));
+  });
+
+  it('should work with compiled queries on stored data', async () => {
+    await storage.put('orders:1', { id: 'ORD-001', total: 100, status: 'completed' });
+    await storage.put('orders:2', { id: 'ORD-002', total: 200, status: 'pending' });
+    await storage.put('orders:3', { id: 'ORD-003', total: 150, status: 'completed' });
+
+    const compiledQuery = query.compile({
+      from: 'orders',
+      where: { status: 'completed' }
+    });
+
+    const completedOrders = compiledQuery();
+    expect(completedOrders).toHaveLength(2);
+    expect(completedOrders.every(o => o.status === 'completed')).toBe(true);
+  });
+
+  it('should handle empty storage results', async () => {
+    // 不存储任何数据
+    const result = query({ from: 'users', where: { active: true } });
+    expect(result).toEqual([]);
+  });
+
+  it('should support direct array queries alongside storage queries', async () => {
+    // 存储一些数据
+    await storage.put('users:1', { name: 'Alice', age: 30 });
+
+    // 查询存储中的数据
+    const storageResult = query({ from: 'users' });
+    expect(storageResult).toHaveLength(1);
+
+    // 查询直接传入的数组
+    const arrayData = [
+      { name: 'Bob', age: 25 },
+      { name: 'Charlie', age: 35 }
+    ];
+    const arrayResult = query({ from: arrayData, where: { age: { $gte: 30 } } });
+    expect(arrayResult).toHaveLength(1);
+    expect(arrayResult[0].name).toBe('Charlie');
+  });
+
+  it('should handle service dependencies correctly', () => {
+    // 验证服务已正确注册
     expect(core.has('storage')).toBe(true);
     expect(core.has('query')).toBe(true);
+
+    // 验证可以获取服务
+    const storageService = core.get('storage');
+    const queryService = core.get('query');
+
+    expect(storageService).toBeDefined();
+    expect(queryService).toBeDefined();
+    expect(typeof queryService).toBe('function');
   });
 
-  it('应该返回相同的服务实例（单例）', () => {
-    const config1 = core.get('config');
-    const config2 = core.get('config');
-    expect(config1).toBe(config2);
+  it('should maintain singleton behavior for services', () => {
+    const query1 = core.get('query');
+    const query2 = core.get('query');
 
-    const logger1 = core.get('logger');
-    const logger2 = core.get('logger');
-    expect(logger1).toBe(logger2);
-  });
-
-  it('应该通过 Config 配置 Logger', () => {
-    const logLevel = logger.getLevel();
-    expect(logLevel).toBe('debug'); // 因为 config.debug = true
-  });
-
-  it('应该通过 Event 发送和接收事件', () => {
-    let receivedData = null;
-    emitter.on('test-event', (data) => {
-      receivedData = data;
-    });
-
-    emitter.emit('test-event', { message: 'hello' });
-    expect(receivedData).toEqual({ message: 'hello' });
-  });
-
-  it('应该通过 Storage 存储数据并通过 Query 查询', async () => {
-    // 存储一些测试数据
-    await storage.put('users', [{ id: 1, name: 'Alice', age: 30 }]);
-    await storage.put('users', [{ id: 2, name: 'Bob', age: 25 }]);
-    await storage.put('users', [{ id: 3, name: 'Charlie', age: 35 }]);
-
-    // 通过 Query 查询数据
-    const result = query({ from: 'users', where: { age: { $gte: 30 } } });
-    expect(result).toHaveLength(2);
-    expect(result.every(user => user.age >= 30)).toBe(true);
-  });
-
-  it('应该结合 Event 和 Storage 实现数据变更通知', async () => {
-    let notified = false;
-    emitter.on('data-changed', () => {
-      notified = true;
-    });
-
-    // 存储数据并触发事件
-    await storage.put('test-key', { value: 'test' });
-    emitter.emit('data-changed', { key: 'test-key' });
-
-    expect(notified).toBe(true);
-  });
-
-  it('应该结合 Logger 和 Event 记录事件', () => {
-    const originalInfo = logger.info;
-    let loggedMessage = null;
-    logger.info = (msg, meta) => {
-      loggedMessage = msg;
-      originalInfo.call(logger, msg, meta);
-    };
-
-    emitter.on('important-event', (data) => {
-      logger.info('Important event occurred', data);
-    });
-
-    emitter.emit('important-event', { id: 123 });
-    expect(loggedMessage).toBe('Important event occurred');
-
-    // 恢复原始方法
-    logger.info = originalInfo;
-  });
-
-  it('应该通过 Config 获取配置并在 Logger 中使用', () => {
-    config.set('customPrefix', 'MyApp');
-    const prefix = config.get('customPrefix');
-    expect(prefix).toBe('MyApp');
-  });
-
-  it('应该支持通过 Core 注册和获取多个服务', () => {
-    core.register('custom-service', () => ({ value: 'custom' }), true);
-    expect(core.has('custom-service')).toBe(true);
-
-    const customService = core.get('custom-service');
-    expect(customService.value).toBe('custom');
-  });
-
-  it('应该正确处理服务间的依赖关系', () => {
-    // Query 依赖 Storage
-    const queryResult = query({ from: 'users' });
-    expect(Array.isArray(queryResult)).toBe(true);
-
-    // Logger 依赖 Config
-    const logLevel = logger.getLevel();
-    expect(['debug', 'info', 'warn', 'error']).toContain(logLevel);
+    // 验证是同一个实例
+    expect(query1).toBe(query2);
   });
 });

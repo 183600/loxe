@@ -461,4 +461,57 @@ describe('MemoryTransaction', () => {
     await expect(tx.commit()).rejects.toThrow('Transaction has already been rolled back');
     await expect(tx.rollback()).rejects.toThrow('Transaction has already been rolled back');
   });
+
+  it('should handle concurrent transactions independently', async () => {
+    await storage.put('key1', 'original1');
+    await storage.put('key2', 'original2');
+    
+    const tx1 = await storage.tx();
+    const tx2 = await storage.tx();
+    
+    // 两个事务同时修改同一个键
+    await tx1.put('key1', 'tx1-value');
+    await tx2.put('key1', 'tx2-value');
+    
+    // 每个事务看到自己的修改
+    expect(await tx1.get('key1')).toBe('tx1-value');
+    expect(await tx2.get('key1')).toBe('tx2-value');
+    
+    // 原始存储未变
+    expect(await storage.get('key1')).toBe('original1');
+    
+    // 提交 tx1
+    await tx1.commit();
+    expect(await storage.get('key1')).toBe('tx1-value');
+    
+    // 提交 tx2，会覆盖 tx1 的修改
+    await tx2.commit();
+    expect(await storage.get('key1')).toBe('tx2-value');
+  });
+
+  it('should handle transaction with multiple operations on same key', async () => {
+    await storage.put('key1', 'initial');
+    
+    const tx = await storage.tx();
+    
+    // 多次操作同一个键
+    await tx.put('key1', 'first');
+    await tx.put('key1', 'second');
+    await tx.put('key1', 'third');
+    
+    expect(await tx.get('key1')).toBe('third');
+    
+    await tx.commit();
+    expect(await storage.get('key1')).toBe('third');
+  });
+
+  it('should handle transaction with empty operations', async () => {
+    const tx = await storage.tx();
+    
+    // 不做任何操作直接提交
+    await tx.commit();
+    
+    // 应该成功，不影响存储
+    expect(storage.data.size).toBe(0);
+  });
 });

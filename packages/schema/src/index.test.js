@@ -284,4 +284,140 @@ describe('Schema Migration', () => {
     expect(() => migrate(null, {}, '1.0', '2.0')).toThrow('Schema name must be a non-empty string');
     expect(() => migrate(123, {}, '1.0', '2.0')).toThrow('Schema name must be a non-empty string');
   });
+
+  it('should validate complex nested objects', () => {
+    const complexSchema = {
+      type: 'object',
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            age: { type: 'number' },
+            address: {
+              type: 'object',
+              properties: {
+                street: { type: 'string' },
+                city: { type: 'string' },
+                zipCode: { type: 'string' }
+              },
+              required: ['city']
+            }
+          },
+          required: ['name']
+        },
+        posts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              tags: {
+                type: 'array',
+                items: { type: 'string' }
+              }
+            },
+            required: ['title']
+          }
+        }
+      },
+      required: ['user']
+    };
+    
+    registerSchema('complex', complexSchema);
+    
+    const validData = {
+      user: {
+        name: 'John',
+        age: 30,
+        address: {
+          street: '123 Main St',
+          city: 'New York',
+          zipCode: '10001'
+        }
+      },
+      posts: [
+        {
+          title: 'First Post',
+          tags: ['tech', 'programming']
+        },
+        {
+          title: 'Second Post',
+          tags: ['life']
+        }
+      ]
+    };
+    
+    const result = validate('complex', validData);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('should return errors for invalid nested objects', () => {
+    const complexSchema = {
+      type: 'object',
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            address: {
+              type: 'object',
+              properties: {
+                city: { type: 'string' }
+              },
+              required: ['city']
+            }
+          },
+          required: ['name']
+        }
+      },
+      required: ['user']
+    };
+    
+    registerSchema('complex', complexSchema);
+    
+    const invalidData = {
+      user: {
+        address: {
+          // missing required 'city'
+        }
+      }
+    };
+    
+    const result = validate('complex', invalidData);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain("user: Required property 'name' is missing");
+    expect(result.errors).toContain("user: address: Required property 'city' is missing");
+  });
+
+  it('should validate deeply nested arrays', () => {
+    const matrixSchema = {
+      type: 'array',
+      items: {
+        type: 'array',
+        items: { type: 'number' }
+      }
+    };
+    
+    registerSchema('matrix', matrixSchema);
+    
+    const validMatrix = [
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9]
+    ];
+    
+    const result = validate('matrix', validMatrix);
+    expect(result.valid).toBe(true);
+    
+    const invalidMatrix = [
+      [1, 2, 'invalid'],
+      [4, 5, 6]
+    ];
+    
+    const invalidResult = validate('matrix', invalidMatrix);
+    expect(invalidResult.valid).toBe(false);
+    expect(invalidResult.errors).toContain("[0]: [2]: Expected type 'number', but got 'string'");
+  });
 });

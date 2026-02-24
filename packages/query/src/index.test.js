@@ -494,5 +494,68 @@ describe('Query Engine', () => {
       // 恢复原始警告函数
       console.warn = originalWarn;
     });
+
+    it('应该处理空数据源', () => {
+      mockCtx.get = () => ({
+        getData: () => []
+      });
+      
+      query = createQueryEngine(mockCtx);
+      
+      const result = query({ from: 'emptySource', where: { active: true } });
+      expect(result).toEqual([]);
+    });
+
+    it('应该处理 null 和 undefined 值的比较', () => {
+      const data = [
+        { id: 1, name: 'Alice', email: null },
+        { id: 2, name: 'Bob', email: 'bob@example.com' },
+        { id: 3, name: 'Charlie', email: undefined }
+      ];
+      
+      const result = query({ from: data, where: { email: null } });
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Alice');
+    });
+
+    it('应该支持复杂的嵌套条件查询', () => {
+      const data = [
+        { id: 1, name: 'Alice', age: 30, status: 'active', score: 85 },
+        { id: 2, name: 'Bob', age: 25, status: 'active', score: 92 },
+        { id: 3, name: 'Charlie', age: 35, status: 'inactive', score: 78 },
+        { id: 4, name: 'Diana', age: 28, status: 'active', score: 88 }
+      ];
+      
+      // 查找活跃用户中年龄在 25-30 之间且分数大于 85 的
+      const result = query({
+        from: data,
+        where: (user) => 
+          user.status === 'active' && 
+          user.age >= 25 && 
+          user.age <= 30 &&
+          user.score > 85
+      });
+      
+      expect(result).toHaveLength(2);
+      expect(result.map(u => u.name)).toEqual(expect.arrayContaining(['Bob', 'Diana']));
+    });
+
+    it('应该支持混合使用操作符和函数过滤', () => {
+      const data = [
+        { id: 1, name: 'Alice', age: 30, tags: ['admin', 'user'] },
+        { id: 2, name: 'Bob', age: 25, tags: ['user'] },
+        { id: 3, name: 'Charlie', age: 35, tags: ['admin'] },
+        { id: 4, name: 'Diana', age: 28, tags: ['user', 'moderator'] }
+      ];
+      
+      // 使用函数过滤数组字段
+      const result = query({
+        from: data,
+        where: (user) => user.tags.includes('admin') && user.age > 30
+      });
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Charlie');
+    });
   });
 });

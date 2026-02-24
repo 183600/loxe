@@ -220,5 +220,110 @@ describe('SecurityContext', () => {
       
       expect(signature1).not.toBe(signature2);
     });
+
+    it('should match the first applicable policy', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      security.setPrincipal({
+        id: 'user1',
+        role: 'admin',
+        department: 'engineering'
+      });
+      
+      // 添加多个策略，第一个应该匹配
+      security.addPolicy({
+        action: 'read',
+        principalAttributes: {
+          role: 'admin'
+        }
+      });
+      
+      // 这个策略也应该匹配，但不会被执行因为第一个已经匹配
+      security.addPolicy({
+        action: 'read',
+        principalAttributes: {
+          department: 'engineering'
+        }
+      });
+      
+      expect(security.can('read', { type: 'document' })).toBe(true);
+    });
+
+    it('should not match when no policy applies', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      security.setPrincipal({
+        id: 'user1',
+        role: 'user',
+        department: 'sales'
+      });
+      
+      // 添加只针对 admin 的策略
+      security.addPolicy({
+        action: 'delete',
+        principalAttributes: {
+          role: 'admin'
+        }
+      });
+      
+      expect(security.can('delete', { type: 'document' })).toBe(false);
+    });
+
+    it('should handle policies with multiple principal attributes', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      security.setPrincipal({
+        id: 'user1',
+        role: 'manager',
+        department: 'engineering',
+        level: 3
+      });
+      
+      // 需要同时匹配多个属性
+      security.addPolicy({
+        action: 'approve',
+        principalAttributes: {
+          role: 'manager',
+          department: 'engineering',
+          level: 3
+        }
+      });
+      
+      expect(security.can('approve', { type: 'expense' })).toBe(true);
+      
+      // 修改 principal 使其不匹配
+      security.setPrincipal({
+        id: 'user1',
+        role: 'manager',
+        department: 'engineering',
+        level: 2
+      });
+      
+      expect(security.can('approve', { type: 'expense' })).toBe(false);
+    });
+
+    it('should handle policies with mixed attribute types', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+      
+      security.setPrincipal({
+        id: 'user1',
+        role: 'user',
+        permissions: ['read', 'write']
+      });
+      
+      // 策略检查 principal 的数组属性（这里简化为字符串比较）
+      security.addPolicy({
+        action: 'read',
+        principalAttributes: {
+          role: 'user'
+        }
+      });
+      
+      expect(security.can('read', { type: 'document' })).toBe(true);
+    });
   });
 });

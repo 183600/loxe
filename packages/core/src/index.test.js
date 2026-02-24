@@ -98,4 +98,48 @@ describe('Core', () => {
     const b = core.get('singleton');
     expect(a.id).toBe(b.id);
   });
+
+  it('should handle factory function throwing errors', () => {
+    const core = createCore();
+    core.register('errorService', () => {
+      throw new Error('Factory error');
+    });
+    
+    expect(() => core.get('errorService')).toThrow('Factory error');
+  });
+
+  it('should not cache singleton instance when factory throws', () => {
+    const core = createCore();
+    let callCount = 0;
+    core.register('flakyService', () => {
+      callCount++;
+      if (callCount === 1) {
+        throw new Error('First attempt failed');
+      }
+      return { success: true };
+    }, true);
+    
+    expect(() => core.get('flakyService')).toThrow('First attempt failed');
+    expect(callCount).toBe(1);
+    
+    const result = core.get('flakyService');
+    expect(result.success).toBe(true);
+    expect(callCount).toBe(2);
+  });
+
+  it('should handle factory function returning null', () => {
+    const core = createCore();
+    core.register('nullService', () => null);
+    
+    const result = core.get('nullService');
+    expect(result).toBeNull();
+  });
+
+  it('should handle factory function returning undefined', () => {
+    const core = createCore();
+    core.register('undefinedService', () => undefined);
+    
+    const result = core.get('undefinedService');
+    expect(result).toBeUndefined();
+  });
 });
