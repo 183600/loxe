@@ -84,7 +84,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout --signal=TERM $(( RUN_HOURS * 3600 )) bash scripts/js_loop.sh || true
+          timeout --signal=TERM $(( RUN_HOURS * 3600 )) bash scripts/iflow_js_loop.sh || true
 
       - name: Commit & push to GitHub
         if: always()
