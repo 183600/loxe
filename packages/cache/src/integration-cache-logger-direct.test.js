@@ -40,9 +40,9 @@ describe('Integration: Cache + Logger Direct Interaction', () => {
     expect(spyLog).toHaveBeenCalledTimes(3);
     expect(spyLog.mock.calls[0][0]).toContain('Cache set: user:1');
     expect(spyLog.mock.calls[1][0]).toContain('Cache get: user:1');
-    expect(spyLog.mock.calls[1][0]).toContain('hit: true');
+    expect(spyLog.mock.calls[1][0]).toContain('"hit":true');
     expect(spyLog.mock.calls[2][0]).toContain('Cache get: nonexistent');
-    expect(spyLog.mock.calls[2][0]).toContain('hit: false');
+    expect(spyLog.mock.calls[2][0]).toContain('"hit":false');
 
     spyLog.mockRestore();
   });
@@ -106,7 +106,7 @@ describe('Integration: Cache + Logger Direct Interaction', () => {
 
     expect(spyLog).toHaveBeenCalled();
     expect(spyLog.mock.calls[0][0]).toContain('Cache statistics');
-    expect(spyLog.mock.calls[0][0]).toContain('size: 3');
+    expect(spyLog.mock.calls[0][0]).toContain('"size":3');
 
     spyLog.mockRestore();
   });

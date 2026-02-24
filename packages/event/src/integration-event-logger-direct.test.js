@@ -1,13 +1,21 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createEventEmitter } from './index.js';
-import { createLogger } from '../logger/src/index.js';
+import { createLogger } from '../../logger/src/index.js';
 
 describe('Integration: Event + Logger Direct Interaction', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('should log all event emissions with metadata', () => {
     const event = createEventEmitter();
     const logger = createLogger(null, { level: 'info' });
 
-    const spyLog = vi.spyOn(console, 'log');
+    const spyLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     // 包装 emit 方法以记录日志
     const originalEmit = event.emit;
@@ -30,11 +38,15 @@ describe('Integration: Event + Logger Direct Interaction', () => {
     const event = createEventEmitter();
     const logger = createLogger(null, { level: 'error' });
 
-    const spyError = vi.spyOn(console, 'error');
+    const spyError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     // 监听错误事件并记录
-    event.on('listener:error', (error, eventName, data) => {
-      logger.error(`Error in listener for event: ${eventName}`, { error: error.message, data });
+    // emit 方法传递 (event, data)，所以监听器接收 (eventName, errorInfo)
+    event.on('listener:error', (eventName, errorInfo) => {
+      logger.error(`Error in listener for event: ${errorInfo.originalEventName}`, { 
+        error: errorInfo.error.message, 
+        data: errorInfo.data 
+      });
     });
 
     // 包装 emit 方法以捕获错误
@@ -43,7 +55,13 @@ describe('Integration: Event + Logger Direct Interaction', () => {
       try {
         return originalEmit.call(this, eventName, data);
       } catch (error) {
-        event.emit('listener:error', error, eventName, data);
+        // 使用原始 emit 来避免递归
+        // 传递错误信息作为 data
+        originalEmit.call(this, 'listener:error', { 
+          originalEventName: eventName, 
+          error, 
+          data 
+        });
         throw error;
       }
     };
@@ -65,9 +83,9 @@ describe('Integration: Event + Logger Direct Interaction', () => {
     const event = createEventEmitter();
     const logger = createLogger(null, { level: 'warn' });
 
-    const spyLog = vi.spyOn(console, 'log');
-    const spyWarn = vi.spyOn(console, 'warn');
-    const spyError = vi.spyOn(console, 'error');
+    const spyLog = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const spyWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const spyError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     // 监听日志事件并转发到 logger
     event.on('log:info', (data) => logger.info(data.message, data.meta));

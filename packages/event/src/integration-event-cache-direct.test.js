@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createEventEmitter } from './index.js';
-import { createCache } from '../cache/src/index.js';
+import { createCache } from '../../cache/src/index.js';
 
 describe('Integration: Event + Cache Direct Interaction', () => {
   beforeEach(() => {

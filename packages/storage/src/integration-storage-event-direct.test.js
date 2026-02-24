@@ -1,7 +1,7 @@
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MemoryStorage } from './index.js';
-import { createEventEmitter } from '../event/src/index.js';
+import { createEventEmitter } from '../../event/src/index.js';
 
 describe('Integration: Storage + Event Direct Interaction', () => {
   let storage;

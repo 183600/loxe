@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryStorage } from './index.js';
-import { createLogger } from '../logger/src/index.js';
+import { createLogger } from '../../logger/src/index.js';
 
 describe('Integration: Storage + Logger Direct Interaction', () => {
   let storage;
@@ -90,7 +90,7 @@ describe('Integration: Storage + Logger Direct Interaction', () => {
 
     expect(spyLog).toHaveBeenCalled();
     expect(spyLog.mock.calls[0][0]).toContain('Storage scan: user:');
-    expect(spyLog.mock.calls[0][0]).toContain('count: 2');
+    expect(spyLog.mock.calls[0][0]).toContain('"count":2');
 
     spyLog.mockRestore();
   });
