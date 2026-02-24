@@ -325,5 +325,58 @@ describe('SecurityContext', () => {
       
       expect(security.can('read', { type: 'document' })).toBe(true);
     });
+
+    it('should encrypt and decrypt empty string', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+
+      const originalData = '';
+      const encrypted = security.encrypt(originalData);
+      const decrypted = security.decrypt(encrypted);
+
+      expect(decrypted).toBe(originalData);
+    });
+
+    it('should encrypt and decrypt empty object', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+
+      const originalData = {};
+      const encrypted = security.encrypt(originalData);
+      const decrypted = security.decrypt(encrypted);
+
+      expect(decrypted).toEqual(originalData);
+    });
+
+    it('should encrypt and decrypt special characters', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+
+      const originalData = 'Hello! @#$%^&*()_+-=[]{}|;:,.<>?';
+      const encrypted = security.encrypt(originalData);
+      const decrypted = security.decrypt(encrypted);
+
+      expect(decrypted).toBe(originalData);
+    });
+
+    it('should encrypt and decrypt unicode characters', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+
+      const originalData = '你好 世界 🌍 Ñoño café';
+      const encrypted = security.encrypt(originalData);
+      const decrypted = security.decrypt(encrypted);
+
+      expect(decrypted).toBe(originalData);
+    });
+
+    it('should handle decrypt with invalid base64 format', () => {
+      const ctx = {};
+      const security = createSecurityContext(ctx);
+
+      expect(() => {
+        security.decrypt('not-valid-base64!!!');
+      }).toThrow('Failed to decrypt data');
+    });
   });
 });

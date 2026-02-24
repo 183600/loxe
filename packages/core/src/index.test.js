@@ -257,4 +257,19 @@ describe('Core', () => {
     expect(c.id).toBe(1);
     expect(calls).toHaveLength(1);
   });
+
+  it('should support method chaining for register operations', () => {
+    const core = createCore();
+    
+    const result = core
+      .register('service1', () => ({ id: 1 }), true)
+      .register('service2', () => ({ id: 2 }), false)
+      .register('service3', () => ({ id: 3 }), true);
+    
+    expect(result).toBe(core);
+    expect(core.list()).toHaveLength(3);
+    expect(core.get('service1').id).toBe(1);
+    expect(core.get('service2').id).toBe(2);
+    expect(core.get('service3').id).toBe(3);
+  });
 });

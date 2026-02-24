@@ -514,4 +514,29 @@ describe('MemoryTransaction', () => {
     // 应该成功，不影响存储
     expect(storage.data.size).toBe(0);
   });
+
+  it('should handle scan with empty prefix', async () => {
+    await storage.put('key1', 'value1');
+    await storage.put('key2', 'value2');
+    await storage.put('key3', 'value3');
+    
+    const results = await storage.scan({ prefix: '' });
+    expect(results).toHaveLength(3);
+  });
+
+  it('should handle scan with no matching results', async () => {
+    await storage.put('key1', 'value1');
+    await storage.put('key2', 'value2');
+    
+    const results = await storage.scan({ prefix: 'nonexistent:' });
+    expect(results).toHaveLength(0);
+  });
+
+  it('should handle scan with limit greater than available items', async () => {
+    await storage.put('key1', 'value1');
+    await storage.put('key2', 'value2');
+    
+    const results = await storage.scan({ prefix: '', limit: 10 });
+    expect(results).toHaveLength(2);
+  });
 });

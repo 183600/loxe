@@ -420,4 +420,62 @@ describe('Schema Migration', () => {
     expect(invalidResult.valid).toBe(false);
     expect(invalidResult.errors).toContain("[0]: [2]: Expected type 'number', but got 'string'");
   });
+
+  it('should handle null values in validation', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        age: { type: 'number' },
+        optional: { type: 'string' }
+      },
+      required: ['name']
+    };
+    
+    registerSchema('test', schema);
+    
+    const data = { name: 'John', age: null, optional: null };
+    const result = validate('test', data);
+    expect(result.valid).toBe(true);
+  });
+
+  it('should handle undefined values in validation', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        age: { type: 'number' }
+      },
+      required: ['name']
+    };
+    
+    registerSchema('test', schema);
+    
+    const data = { name: 'John', age: undefined };
+    const result = validate('test', data);
+    expect(result.valid).toBe(true);
+  });
+
+  it('should handle empty string validation', () => {
+    const schema = {
+      type: 'string'
+    };
+    
+    registerSchema('test', schema);
+    
+    const result = validate('test', '');
+    expect(result.valid).toBe(true);
+  });
+
+  it('should handle empty array validation', () => {
+    const schema = {
+      type: 'array',
+      items: { type: 'number' }
+    };
+    
+    registerSchema('test', schema);
+    
+    const result = validate('test', []);
+    expect(result.valid).toBe(true);
+  });
 });

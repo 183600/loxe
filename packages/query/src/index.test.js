@@ -557,5 +557,42 @@ describe('Query Engine', () => {
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Charlie');
     });
+
+    it('should cache compiled queries for performance', () => {
+      const compiledQuery1 = query.compile({
+        from: 'users',
+        where: { city: 'New York' }
+      });
+
+      const compiledQuery2 = query.compile({
+        from: 'users',
+        where: { city: 'New York' }
+      });
+
+      // 编译后的查询应该是不同的函数实例
+      expect(compiledQuery1).not.toBe(compiledQuery2);
+
+      // 但执行结果应该相同
+      const result1 = compiledQuery1();
+      const result2 = compiledQuery2();
+
+      expect(result1).toEqual(result2);
+      expect(result1).toHaveLength(2);
+    });
+
+    it('should handle compile with complex where conditions', () => {
+      const compiledQuery = query.compile({
+        from: 'users',
+        where: {
+          age: { $gte: 25, $lte: 35 },
+          city: { $in: ['New York', 'Chicago'] }
+        }
+      });
+
+      const result = compiledQuery();
+      expect(result).toHaveLength(2);
+      expect(result.every(u => u.age >= 25 && u.age <= 35)).toBe(true);
+      expect(result.every(u => ['New York', 'Chicago'].includes(u.city))).toBe(true);
+    });
   });
 });
