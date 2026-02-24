@@ -78,7 +78,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x scripts/js_loop.sh
+          chmod +x scripts/iflow_js_loop.sh
 
       - name: Run for ${{ env.RUN_HOURS }} hours
         shell: bash
