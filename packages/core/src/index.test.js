@@ -385,4 +385,27 @@ describe('Core', () => {
     expect(b).toBe(instance);
     expect(a).toBe(b);
   });
+
+  it('should handle service names with numeric strings', () => {
+    const core = createCore();
+    
+    core.register('123', () => ({ id: 123 }), true);
+    core.register('456', () => ({ id: 456 }), true);
+    
+    expect(core.get('123').id).toBe(123);
+    expect(core.get('456').id).toBe(456);
+    expect(core.has('123')).toBe(true);
+    expect(core.has('456')).toBe(true);
+  });
+
+  it('should handle service factory returning function', () => {
+    const core = createCore();
+    
+    const factoryFunc = () => 'result';
+    core.register('service', () => factoryFunc, true);
+    
+    const retrieved = core.get('service');
+    expect(typeof retrieved).toBe('function');
+    expect(retrieved()).toBe('result');
+  });
 });

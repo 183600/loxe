@@ -22,8 +22,10 @@ export function createEventEmitter(ctx) {
     },
 
     emit(event, data) {
+      const errors = [];
+      
+      // 精确匹配
       if (listeners.has(event)) {
-        const errors = [];
         for (const callback of listeners.get(event)) {
           try {
             callback(data);
@@ -31,9 +33,28 @@ export function createEventEmitter(ctx) {
             errors.push(error);
           }
         }
-        if (errors.length > 0) {
-          throw errors[0];
+      }
+      
+      // 通配符匹配 (如 count:* 匹配 count:click)
+      const eventStr = String(event);
+      for (const [key, callbacks] of listeners.entries()) {
+        const keyStr = String(key);
+        if (keyStr.endsWith('*')) {
+          const pattern = keyStr.slice(0, -1);
+          if (eventStr.startsWith(pattern)) {
+            for (const callback of callbacks) {
+              try {
+                callback(event, data);
+              } catch (error) {
+                errors.push(error);
+              }
+            }
+          }
         }
+      }
+      
+      if (errors.length > 0) {
+        throw errors[0];
       }
     },
 

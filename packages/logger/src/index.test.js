@@ -282,4 +282,16 @@ describe('Logger', () => {
     expect(output).toContain('test message');
     spy.mockRestore();
   });
+
+  it('should handle rapid sequential logging', () => {
+    const logger = createLogger(null, { level: 'info' });
+    const spy = vi.spyOn(console, 'log');
+    
+    for (let i = 0; i < 100; i++) {
+      logger.info(`message ${i}`);
+    }
+    
+    expect(spy).toHaveBeenCalledTimes(100);
+    spy.mockRestore();
+  });
 });

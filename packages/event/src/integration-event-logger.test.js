@@ -6,15 +6,21 @@ describe('Event and Logger Integration', () => {
   let emitter;
   let logger;
   let consoleSpy;
+  let errorSpy;
+  let warnSpy;
 
   beforeEach(() => {
     emitter = createEventEmitter();
     logger = createLogger(null, { level: 'info' });
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     consoleSpy.mockRestore();
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it('should log events as they occur', () => {
@@ -45,8 +51,8 @@ describe('Event and Logger Integration', () => {
 
     emitter.emit('data:process', { valid: false });
 
-    expect(consoleSpy).toHaveBeenCalledTimes(1);
-    const logOutput = consoleSpy.mock.calls[0][0];
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    const logOutput = errorSpy.mock.calls[0][0];
     expect(logOutput).toContain('Data processing failed');
   });
 
@@ -101,7 +107,8 @@ describe('Event and Logger Integration', () => {
     emitter.emit('debug:event', { detail: 'some debug info' });
     emitter.emit('warn:event', { detail: 'some warning' });
 
-    expect(consoleSpy).toHaveBeenCalledTimes(2);
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
   it('should create an audit logger for critical events', () => {
@@ -161,8 +168,8 @@ describe('Event and Logger Integration', () => {
 
     emitter.emit('risky:operation', { shouldFail: true, context: { attempt: 1 } });
 
-    expect(consoleSpy).toHaveBeenCalledTimes(1);
-    const logOutput = consoleSpy.mock.calls[0][0];
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    const logOutput = errorSpy.mock.calls[0][0];
     expect(logOutput).toContain('ERROR');
     expect(logOutput).toContain('Operation error');
   });

@@ -129,7 +129,7 @@ describe('Core Integration Tests', () => {
     expect(client.getTimeout()).toBe(10000);
   });
 
-  it('should integrate with storage and cache for data layer', () => {
+  it('should integrate with storage and cache for data layer', async () => {
     const mockStorage = {
       data: new Map(),
       async get(key) { return this.data.get(key) || null; },

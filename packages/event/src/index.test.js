@@ -540,4 +540,36 @@ describe('EventEmitter', () => {
     // 所以会调用 listener1、第一个 dynamic 监听器，然后添加第二个 dynamic 监听器并调用它
     expect(results).toEqual(['listener1:first', 'dynamic:first', 'listener1:second', 'dynamic:second', 'dynamic:second']);
   });
+
+  it('should support wildcard event patterns', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.on('user:*', (event, data) => {
+      results.push({ event, data });
+    });
+    
+    emitter.emit('user:login', { id: 1 });
+    emitter.emit('user:logout', { id: 1 });
+    emitter.emit('user:update', { id: 1 });
+    
+    expect(results).toHaveLength(3);
+    expect(results[0]).toEqual({ event: 'user:login', data: { id: 1 } });
+    expect(results[1]).toEqual({ event: 'user:logout', data: { id: 1 } });
+    expect(results[2]).toEqual({ event: 'user:update', data: { id: 1 } });
+  });
+
+  it('should handle multiple wildcard patterns for same event', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.on('api:*', (event, data) => results.push('api:' + event));
+    emitter.on('api:request:*', (event, data) => results.push('request:' + event));
+    
+    emitter.emit('api:request:get', { url: '/users' });
+    
+    expect(results).toHaveLength(2);
+    expect(results).toContain('api:api:request:get');
+    expect(results).toContain('request:api:request:get');
+  });
 });

@@ -216,4 +216,18 @@ describe('Config', () => {
     config.set('key', 'new-value');
     expect(config.get('key')).toBe('new-value');
   });
+
+  it('should handle chaining set operations', () => {
+    const config = createConfig();
+    
+    const result = config
+      .set('key1', 'value1')
+      .set('key2', 'value2')
+      .set('key3', 'value3');
+    
+    expect(result).toBe(config);
+    expect(config.get('key1')).toBe('value1');
+    expect(config.get('key2')).toBe('value2');
+    expect(config.get('key3')).toBe('value3');
+  });
 });

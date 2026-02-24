@@ -309,4 +309,19 @@ describe('Cache', () => {
     
     expect(cache.size()).toBe(0);
   });
+
+  it('should handle chaining set operations', () => {
+    const cache = createCache();
+    
+    const result = cache
+      .set('key1', 'value1')
+      .set('key2', 'value2')
+      .set('key3', 'value3');
+    
+    expect(result).toBe(cache);
+    expect(cache.size()).toBe(3);
+    expect(cache.get('key1')).toBe('value1');
+    expect(cache.get('key2')).toBe('value2');
+    expect(cache.get('key3')).toBe('value3');
+  });
 });
