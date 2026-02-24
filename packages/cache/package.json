@@ -8,7 +8,7 @@
     ".": "./src/index.js"
   },
   "scripts": {
-    "test": "bun test"
+    "test": "vitest"
   },
   "devDependencies": {
     "bun-types": "^1.0.0"

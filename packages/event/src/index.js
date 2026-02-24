@@ -23,8 +23,16 @@ export function createEventEmitter(ctx) {
 
     emit(event, data) {
       if (listeners.has(event)) {
+        const errors = [];
         for (const callback of listeners.get(event)) {
-          callback(data);
+          try {
+            callback(data);
+          } catch (error) {
+            errors.push(error);
+          }
+        }
+        if (errors.length > 0) {
+          throw errors[0];
         }
       }
     },

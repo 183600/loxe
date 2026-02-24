@@ -10,6 +10,7 @@ export function createCore(options = {}) {
   const core = {
     register(name, factory, singleton = false) {
       services.set(name, { factory, singleton });
+      singletons.delete(name);
       return this;
     },
 
