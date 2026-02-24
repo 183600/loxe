@@ -152,4 +152,49 @@ describe('Middleware', () => {
     await expect(mw.execute(ctx)).rejects.toThrow('next() called multiple times');
     expect(ctx.reached).toBe(true);
   });
+
+  it('should propagate errors through middleware chain', async () => {
+    const mw = createMiddleware();
+    const errors = [];
+    
+    mw.use(async (ctx, next) => {
+      try {
+        await next();
+      } catch (error) {
+        errors.push('mw1-catch');
+        throw error; // 重新抛出错误
+      }
+    });
+    
+    mw.use(async (ctx, next) => {
+      errors.push('mw2-before');
+      throw new Error('Middleware error');
+    });
+    
+    mw.use(async (ctx, next) => {
+      errors.push('mw3'); // 不应该执行
+    });
+    
+    const ctx = {};
+    await expect(mw.execute(ctx)).rejects.toThrow('Middleware error');
+    expect(errors).toEqual(['mw2-before', 'mw1-catch']);
+  });
+
+  it('should handle error in first middleware', async () => {
+    const mw = createMiddleware();
+    
+    mw.use(async (ctx, next) => {
+      ctx.step1 = true;
+      throw new Error('First middleware error');
+    });
+    
+    mw.use(async (ctx, next) => {
+      ctx.step2 = true; // 不应该执行
+    });
+    
+    const ctx = {};
+    await expect(mw.execute(ctx)).rejects.toThrow('First middleware error');
+    expect(ctx.step1).toBe(true);
+    expect(ctx.step2).toBeUndefined();
+  });
 });

@@ -8,6 +8,7 @@ describe('Logger + Cache Integration', () => {
     const cache = createCache();
 
     const spy = vi.spyOn(console, 'log');
+    spy.mockClear();
 
     cache.set('key', 'value');
     logger.info('Cache set: key = value');
@@ -17,7 +18,7 @@ describe('Logger + Cache Integration', () => {
 
     expect(spy).toHaveBeenCalledTimes(2);
     expect(spy.mock.calls[0][0]).toContain('Cache set: key = value');
-    expect(spy.mock.calls[1][0]).toContain('Cache get: key = value');
+    expect(spy.mock.calls[1][0]).toContain('Cache get: key = "value"');
 
     spy.mockRestore();
   });
@@ -48,6 +49,7 @@ describe('Logger + Cache Integration', () => {
     };
 
     const spy = vi.spyOn(console, 'log');
+    spy.mockClear();
 
     loggedCache.set('user:123', { name: 'Alice' });
     loggedCache.has('user:123');
@@ -90,6 +92,9 @@ describe('Logger + Cache Integration', () => {
     const spyLog = vi.spyOn(console, 'log');
     const spyWarn = vi.spyOn(console, 'warn');
     const spyError = vi.spyOn(console, 'error');
+    spyLog.mockClear();
+    spyWarn.mockClear();
+    spyError.mockClear();
 
     // Cache miss
     loggedCache.get('nonexistent');
@@ -114,6 +119,7 @@ describe('Logger + Cache Integration', () => {
     const cache = createCache();
 
     const spy = vi.spyOn(console, 'log');
+    spy.mockClear();
 
     cache.set('key1', 'value1');
     cache.set('key2', 'value2');
@@ -140,6 +146,7 @@ describe('Logger + Cache Integration', () => {
     const cache = createCache();
 
     const spy = vi.spyOn(console, 'log');
+    spy.mockClear();
 
     cache.set('key1', 'value1');
     cache.set('key2', 'value2');

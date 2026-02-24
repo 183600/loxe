@@ -294,4 +294,59 @@ describe('Logger', () => {
     expect(spy).toHaveBeenCalledTimes(100);
     spy.mockRestore();
   });
+
+  it('should handle level transitions correctly', () => {
+    const logger = createLogger(null, { level: 'error' });
+    const spyLog = vi.spyOn(console, 'log');
+    const spyWarn = vi.spyOn(console, 'warn');
+    const spyError = vi.spyOn(console, 'error');
+    
+    // 初始 error 级别
+    logger.debug('debug');
+    logger.info('info');
+    logger.warn('warn');
+    logger.error('error');
+    expect(spyLog).not.toHaveBeenCalled();
+    expect(spyWarn).not.toHaveBeenCalled();
+    expect(spyError).toHaveBeenCalledTimes(1);
+    
+    // 切换到 warn 级别
+    logger.setLevel('warn');
+    logger.debug('debug2');
+    logger.info('info2');
+    logger.warn('warn2');
+    logger.error('error2');
+    expect(spyLog).not.toHaveBeenCalled();
+    expect(spyWarn).toHaveBeenCalledTimes(1);
+    expect(spyError).toHaveBeenCalledTimes(2);
+    
+    // 切换到 info 级别
+    logger.setLevel('info');
+    logger.debug('debug3');
+    logger.info('info3');
+    logger.warn('warn3');
+    logger.error('error3');
+    expect(spyLog).toHaveBeenCalledTimes(1);
+    expect(spyWarn).toHaveBeenCalledTimes(2);
+    expect(spyError).toHaveBeenCalledTimes(3);
+    
+    spyLog.mockRestore();
+    spyWarn.mockRestore();
+    spyError.mockRestore();
+  });
+
+  it('should get current level correctly after changes', () => {
+    const logger = createLogger(null, { level: 'info' });
+    
+    expect(logger.getLevel()).toBe('info');
+    
+    logger.setLevel('debug');
+    expect(logger.getLevel()).toBe('debug');
+    
+    logger.setLevel('warn');
+    expect(logger.getLevel()).toBe('warn');
+    
+    logger.setLevel('error');
+    expect(logger.getLevel()).toBe('error');
+  });
 });

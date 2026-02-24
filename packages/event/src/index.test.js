@@ -572,4 +572,34 @@ describe('EventEmitter', () => {
     expect(results).toContain('api:api:request:get');
     expect(results).toContain('request:api:request:get');
   });
+
+  it('should handle wildcard patterns with different levels', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.on('app:*', (event, data) => results.push({ level: 1, event, data }));
+    emitter.on('app:module:*', (event, data) => results.push({ level: 2, event, data }));
+    emitter.on('app:module:action:*', (event, data) => results.push({ level: 3, event, data }));
+    
+    emitter.emit('app:module:action:create', { id: 1 });
+    
+    expect(results).toHaveLength(3);
+    expect(results[0]).toEqual({ level: 1, event: 'app:module:action:create', data: { id: 1 } });
+    expect(results[1]).toEqual({ level: 2, event: 'app:module:action:create', data: { id: 1 } });
+    expect(results[2]).toEqual({ level: 3, event: 'app:module:action:create', data: { id: 1 } });
+  });
+
+  it('should handle wildcard patterns that do not match', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.on('user:*', (event, data) => results.push('user:' + event));
+    emitter.on('admin:*', (event, data) => results.push('admin:' + event));
+    
+    emitter.emit('user:login', { id: 1 });
+    emitter.emit('system:startup', {});
+    
+    expect(results).toHaveLength(1);
+    expect(results[0]).toBe('user:user:login');
+  });
 });

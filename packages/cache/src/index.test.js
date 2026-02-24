@@ -324,4 +324,58 @@ describe('Cache', () => {
     expect(cache.get('key2')).toBe('value2');
     expect(cache.get('key3')).toBe('value3');
   });
+
+  it('should handle TTL expiration with exact timing', () => {
+    const cache = createCache();
+    const ttl = 100;
+    
+    cache.set('key', 'value', ttl);
+    expect(cache.get('key')).toBe('value');
+    
+    vi.advanceTimersByTime(ttl - 1);
+    expect(cache.get('key')).toBe('value');
+    
+    vi.advanceTimersByTime(1);
+    expect(cache.get('key')).toBeUndefined();
+  });
+
+  it('should handle multiple keys with different TTLs expiring at different times', () => {
+    const cache = createCache();
+    
+    cache.set('key1', 'value1', 100);
+    cache.set('key2', 'value2', 200);
+    cache.set('key3', 'value3', 300);
+    
+    expect(cache.size()).toBe(3);
+    
+    vi.advanceTimersByTime(100);
+    expect(cache.get('key1')).toBeUndefined();
+    expect(cache.get('key2')).toBe('value2');
+    expect(cache.get('key3')).toBe('value3');
+    expect(cache.size()).toBe(2);
+    
+    vi.advanceTimersByTime(100);
+    expect(cache.get('key2')).toBeUndefined();
+    expect(cache.get('key3')).toBe('value3');
+    expect(cache.size()).toBe(1);
+    
+    vi.advanceTimersByTime(100);
+    expect(cache.get('key3')).toBeUndefined();
+    expect(cache.size()).toBe(0);
+  });
+
+  it('should handle setting key with TTL then updating without TTL', () => {
+    const cache = createCache();
+    
+    cache.set('key', 'value1', 100);
+    vi.advanceTimersByTime(50);
+    expect(cache.get('key')).toBe('value1');
+    
+    // 更新为无 TTL 的值
+    cache.set('key', 'value2');
+    vi.advanceTimersByTime(60);
+    
+    // 原本的 TTL 应该已过期，但新值应该存在
+    expect(cache.get('key')).toBe('value2');
+  });
 });

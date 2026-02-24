@@ -539,4 +539,77 @@ describe('MemoryTransaction', () => {
     const results = await storage.scan({ prefix: '', limit: 10 });
     expect(results).toHaveLength(2);
   });
+
+  it('should provide transaction isolation between concurrent transactions', async () => {
+    await storage.put('key1', 'original1');
+    await storage.put('key2', 'original2');
+    
+    const tx1 = await storage.tx();
+    const tx2 = await storage.tx();
+    
+    // tx1 修改 key1
+    await tx1.put('key1', 'tx1-value1');
+    await tx1.put('key3', 'tx1-new');
+    
+    // tx2 修改 key2
+    await tx2.put('key2', 'tx2-value2');
+    await tx2.put('key4', 'tx2-new');
+    
+    // 每个事务看到自己的修改，看不到对方的修改
+    expect(await tx1.get('key1')).toBe('tx1-value1');
+    expect(await tx1.get('key2')).toBe('original2');
+    expect(await tx1.get('key3')).toBe('tx1-new');
+    expect(await tx1.get('key4')).toBe(null);
+    
+    expect(await tx2.get('key1')).toBe('original1');
+    expect(await tx2.get('key2')).toBe('tx2-value2');
+    expect(await tx2.get('key3')).toBe(null);
+    expect(await tx2.get('key4')).toBe('tx2-new');
+    
+    // 原始存储未变
+    expect(await storage.get('key1')).toBe('original1');
+    expect(await storage.get('key2')).toBe('original2');
+    
+    // 提交 tx1
+    await tx1.commit();
+    expect(await storage.get('key1')).toBe('tx1-value1');
+    expect(await storage.get('key2')).toBe('original2');
+    expect(await storage.get('key3')).toBe('tx1-new');
+    
+    // tx2 仍然看到自己的隔离视图
+    expect(await tx2.get('key1')).toBe('original1');
+    expect(await tx2.get('key2')).toBe('tx2-value2');
+    
+    // 提交 tx2
+    await tx2.commit();
+    expect(await storage.get('key1')).toBe('tx1-value1');
+    expect(await storage.get('key2')).toBe('tx2-value2');
+    expect(await storage.get('key3')).toBe('tx1-new');
+    expect(await storage.get('key4')).toBe('tx2-new');
+  });
+
+  it('should handle transaction rollback after partial operations', async () => {
+    await storage.put('key1', 'original1');
+    await storage.put('key2', 'original2');
+    
+    const tx = await storage.tx();
+    
+    await tx.put('key1', 'modified1');
+    await tx.put('key2', 'modified2');
+    await tx.put('key3', 'new3');
+    await tx.del('key1');
+    
+    // 事务内看到修改
+    expect(await tx.get('key1')).toBe(null);
+    expect(await tx.get('key2')).toBe('modified2');
+    expect(await tx.get('key3')).toBe('new3');
+    
+    // 回滚
+    await tx.rollback();
+    
+    // 原始存储未变
+    expect(await storage.get('key1')).toBe('original1');
+    expect(await storage.get('key2')).toBe('original2');
+    expect(await storage.get('key3')).toBe(null);
+  });
 });

@@ -151,4 +151,40 @@ describe('Router', () => {
       expect(router.handle('GET', '/api')).toBe('api');
       // 空路径 '' 会匹配到根路径 '/'，这是路由实现的行为
       expect(router.handle('GET', '')).toBe('root');
-    });});
+    });
+
+  it('should handle routes with multiple parameters', () => {
+    const router = createRouter();
+    router.get('/users/:userId/posts/:postId/comments/:commentId', (ctx) => ({
+      userId: ctx.params.userId,
+      postId: ctx.params.postId,
+      commentId: ctx.params.commentId
+    }));
+    
+    const result = router.handle('GET', '/users/123/posts/456/comments/789');
+    expect(result).toEqual({
+      userId: '123',
+      postId: '456',
+      commentId: '789'
+    });
+  });
+
+  it('should handle parameter values with special characters', () => {
+    const router = createRouter();
+    router.get('/files/:filename', (ctx) => ctx.params.filename);
+    router.get('/search/:query', (ctx) => ctx.params.query);
+    
+    expect(router.handle('GET', '/files/my-document_v2.0.pdf')).toBe('my-document_v2.0.pdf');
+    expect(router.handle('GET', '/search/hello+world')).toBe('hello+world');
+  });
+
+  it('should not match routes with different segment counts', () => {
+    const router = createRouter();
+    router.get('/users/:id', (ctx) => 'user');
+    router.get('/users/:id/posts', (ctx) => 'posts');
+    
+    expect(router.handle('GET', '/users/123')).toBe('user');
+    expect(router.handle('GET', '/users/123/posts')).toBe('posts');
+    expect(router.handle('GET', '/users/123/posts/456')).toBeNull();
+  });
+});

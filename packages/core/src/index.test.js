@@ -408,4 +408,76 @@ describe('Core', () => {
     expect(typeof retrieved).toBe('function');
     expect(retrieved()).toBe('result');
   });
+
+  it('should resolve dependencies in correct order', () => {
+    const core = createCore();
+    const initOrder = [];
+    
+    core.register('serviceA', (ctx) => {
+      initOrder.push('A');
+      ctx.get('serviceB');
+      return { name: 'A' };
+    }, true);
+    
+    core.register('serviceB', (ctx) => {
+      initOrder.push('B');
+      ctx.get('serviceC');
+      return { name: 'B' };
+    }, true);
+    
+    core.register('serviceC', () => {
+      initOrder.push('C');
+      return { name: 'C' };
+    }, true);
+    
+    // 获取 serviceA 应该按 A -> B -> C 的顺序初始化
+    core.get('serviceA');
+    expect(initOrder).toEqual(['A', 'B', 'C']);
+  });
+
+  it('should handle circular dependency with lazy resolution', () => {
+    const core = createCore();
+    
+    core.register('parent', (ctx) => {
+      return {
+        name: 'parent',
+        getChild: () => ctx.get('child')
+      };
+    }, true);
+    
+    core.register('child', (ctx) => {
+      return {
+        name: 'child',
+        getParent: () => ctx.get('parent')
+      };
+    }, true);
+    
+    const parent = core.get('parent');
+    const child = parent.getChild();
+    expect(child.name).toBe('child');
+    
+    const parentAgain = child.getParent();
+    expect(parentAgain).toBe(parent);
+  });
+
+  it('should maintain singleton state across multiple dependency chains', () => {
+    const core = createCore();
+    
+    core.register('shared', () => ({ id: Math.random() }), true);
+    
+    core.register('service1', (ctx) => {
+      const shared = ctx.get('shared');
+      return { sharedId: shared.id };
+    }, true);
+    
+    core.register('service2', (ctx) => {
+      const shared = ctx.get('shared');
+      return { sharedId: shared.id };
+    }, true);
+    
+    const s1 = core.get('service1');
+    const s2 = core.get('service2');
+    
+    expect(s1.sharedId).toBe(s2.sharedId);
+  });
 });

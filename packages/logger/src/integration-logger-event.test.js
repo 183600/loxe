@@ -8,6 +8,7 @@ describe('Logger + Event Integration', () => {
     const event = createEventEmitter();
 
     const spy = vi.spyOn(console, 'log');
+    spy.mockClear();
 
     event.on('test', (data) => {
       logger.info(`Event received: ${data}`);
@@ -65,6 +66,7 @@ describe('Logger + Event Integration', () => {
     eventLogger.onLogged((data) => loggedEvents.push(data));
 
     const spy = vi.spyOn(console, 'log');
+    spy.mockClear();
     eventLogger.logEvent('user:login', { userId: 123 });
 
     expect(spy).toHaveBeenCalled();
@@ -83,6 +85,7 @@ describe('Logger + Event Integration', () => {
     const event = createEventEmitter();
 
     const spy = vi.spyOn(console, 'error');
+    spy.mockClear();
 
     event.on('error', (error) => {
       logger.error(`Error occurred: ${error.message}`, { stack: error.stack });
@@ -108,6 +111,7 @@ describe('Logger + Event Integration', () => {
     });
 
     const spy = vi.spyOn(console, 'log');
+    spy.mockClear();
 
     logger.info('before change');
     expect(spy).toHaveBeenCalledTimes(1);

@@ -230,4 +230,74 @@ describe('Config', () => {
     expect(config.get('key2')).toBe('value2');
     expect(config.get('key3')).toBe('value3');
   });
+
+  it('should perform deep merge on nested objects', () => {
+    const config = createConfig({
+      database: {
+        host: 'localhost',
+        port: 5432,
+        credentials: {
+          username: 'admin',
+          password: 'secret'
+        }
+      },
+      cache: {
+        enabled: true,
+        ttl: 3600
+      }
+    });
+    
+    config.merge({
+      database: {
+        port: 3306,
+        credentials: {
+          password: 'new-secret'
+        }
+      },
+      cache: {
+        ttl: 7200
+      },
+      newFeature: {
+        enabled: false
+      }
+    });
+    
+    expect(config.get('database.host')).toBe('localhost');
+    expect(config.get('database.port')).toBe(3306);
+    expect(config.get('database.credentials.username')).toBe('admin');
+    expect(config.get('database.credentials.password')).toBe('new-secret');
+    expect(config.get('cache.enabled')).toBe(true);
+    expect(config.get('cache.ttl')).toBe(7200);
+    expect(config.get('newFeature.enabled')).toBe(false);
+  });
+
+  it('should handle merge with deeply nested structures', () => {
+    const config = createConfig({
+      level1: {
+        level2: {
+          level3: {
+            value: 'original'
+          }
+        }
+      }
+    });
+    
+    config.merge({
+      level1: {
+        level2: {
+          level3: {
+            value: 'updated',
+            newValue: 'added'
+          },
+          newLevel3: {
+            value: 'new'
+          }
+        }
+      }
+    });
+    
+    expect(config.get('level1.level2.level3.value')).toBe('updated');
+    expect(config.get('level1.level2.level3.newValue')).toBe('added');
+    expect(config.get('level1.level2.newLevel3.value')).toBe('new');
+  });
 });
