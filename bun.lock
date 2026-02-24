@@ -1,0 +1,145 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "valt-workspace",
+    },
+    "packages/cache": {
+      "name": "@lfde/cache",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/config": {
+      "name": "@lfde/config",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/core": {
+      "name": "@lfde/core",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/event": {
+      "name": "@lfde/event",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/logger": {
+      "name": "@lfde/logger",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/middleware": {
+      "name": "@lfde/middleware",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/query": {
+      "name": "@lfde/query",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/router": {
+      "name": "@lfde/router",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/schema": {
+      "name": "@lfde/schema",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/security": {
+      "name": "@lfde/security",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/storage": {
+      "name": "@lfde/storage",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/sync": {
+      "name": "@lfde/sync",
+      "version": "0.0.1",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/utils": {
+      "name": "@lfde/utils",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+    "packages/validation": {
+      "name": "@lfde/validation",
+      "version": "1.0.0",
+      "devDependencies": {
+        "bun-types": "^1.0.0",
+      },
+    },
+  },
+  "packages": {
+    "@lfde/cache": ["@lfde/cache@workspace:packages/cache"],
+
+    "@lfde/config": ["@lfde/config@workspace:packages/config"],
+
+    "@lfde/core": ["@lfde/core@workspace:packages/core"],
+
+    "@lfde/event": ["@lfde/event@workspace:packages/event"],
+
+    "@lfde/logger": ["@lfde/logger@workspace:packages/logger"],
+
+    "@lfde/middleware": ["@lfde/middleware@workspace:packages/middleware"],
+
+    "@lfde/query": ["@lfde/query@workspace:packages/query"],
+
+    "@lfde/router": ["@lfde/router@workspace:packages/router"],
+
+    "@lfde/schema": ["@lfde/schema@workspace:packages/schema"],
+
+    "@lfde/security": ["@lfde/security@workspace:packages/security"],
+
+    "@lfde/storage": ["@lfde/storage@workspace:packages/storage"],
+
+    "@lfde/sync": ["@lfde/sync@workspace:packages/sync"],
+
+    "@lfde/utils": ["@lfde/utils@workspace:packages/utils"],
+
+    "@lfde/validation": ["@lfde/validation@workspace:packages/validation"],
+
+    "@types/node": ["@types/node@25.3.0", "", { "dependencies": { "undici-types": "~7.18.0" } }, "sha512-4K3bqJpXpqfg2XKGK9bpDTc6xO/xoUP/RBWS7AtRMug6zZFaRekiLzjVtAoZMquxoAbzBvy5nxQ7veS5eYzf8A=="],
+
+    "bun-types": ["bun-types@1.3.9", "", { "dependencies": { "@types/node": "*" } }, "sha512-+UBWWOakIP4Tswh0Bt0QD0alpTY8cb5hvgiYeWCMet9YukHbzuruIEeXC2D7nMJPB12kbh8C7XJykSexEqGKJg=="],
+
+    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
+    "undici-types": ["undici-types@7.18.2", "", {}, "sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w=="],
+  }
+}
