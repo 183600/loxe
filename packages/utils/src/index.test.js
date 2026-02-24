@@ -85,4 +85,89 @@ describe('Utils', () => {
     
     vi.restoreAllMocks();
   });
+
+  it('should deep clone simple objects', () => {
+    const utils = createUtils();
+    const obj = { a: 1, b: 'hello', c: true };
+    const cloned = utils.deepClone(obj);
+    
+    expect(cloned).toEqual(obj);
+    expect(cloned).not.toBe(obj);
+  });
+
+  it('should deep clone nested objects', () => {
+    const utils = createUtils();
+    const obj = {
+      level1: {
+        level2: {
+          level3: { value: 42 }
+        }
+      }
+    };
+    const cloned = utils.deepClone(obj);
+    
+    expect(cloned).toEqual(obj);
+    expect(cloned.level1).not.toBe(obj.level1);
+    expect(cloned.level1.level2).not.toBe(obj.level1.level2);
+  });
+
+  it('should deep clone arrays', () => {
+    const utils = createUtils();
+    const arr = [1, { a: 2 }, [3, 4]];
+    const cloned = utils.deepClone(arr);
+    
+    expect(cloned).toEqual(arr);
+    expect(cloned).not.toBe(arr);
+    expect(cloned[1]).not.toBe(arr[1]);
+    expect(cloned[2]).not.toBe(arr[2]);
+  });
+
+  it('should deep merge nested objects', () => {
+    const utils = createUtils();
+    const target = {
+      a: 1,
+      nested: { x: 1, y: 2 }
+    };
+    const source = {
+      b: 2,
+      nested: { y: 20, z: 3 }
+    };
+    
+    const merged = utils.deepMerge(target, source);
+    
+    expect(merged).toEqual({
+      a: 1,
+      b: 2,
+      nested: { x: 1, y: 20, z: 3 }
+    });
+  });
+
+  it('should not mutate original objects during deep merge', () => {
+    const utils = createUtils();
+    const target = { a: 1, nested: { x: 1 } };
+    const source = { b: 2, nested: { y: 2 } };
+    
+    const merged = utils.deepMerge(target, source);
+    
+    expect(target).toEqual({ a: 1, nested: { x: 1 } });
+    expect(source).toEqual({ b: 2, nested: { y: 2 } });
+    expect(merged.nested).not.toBe(target.nested);
+    expect(merged.nested).not.toBe(source.nested);
+  });
+
+  it('should pick non-existent keys gracefully', () => {
+    const utils = createUtils();
+    const obj = { a: 1, b: 2 };
+    const result = utils.pick(obj, ['a', 'c', 'd']);
+    
+    expect(result).toEqual({ a: 1 });
+  });
+
+  it('should omit multiple keys', () => {
+    const utils = createUtils();
+    const obj = { a: 1, b: 2, c: 3, d: 4 };
+    const result = utils.omit(obj, ['b', 'd']);
+    
+    expect(result).toEqual({ a: 1, c: 3 });
+  });
 });
