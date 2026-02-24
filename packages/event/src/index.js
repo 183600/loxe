@@ -28,7 +28,12 @@ export function createEventEmitter(ctx) {
       if (listeners.has(event)) {
         for (const callback of listeners.get(event)) {
           try {
-            callback(data);
+            // 根据回调函数的参数长度决定传递的参数数量
+            if (callback.length >= 2) {
+              callback(event, data);
+            } else {
+              callback(data);
+            }
           } catch (error) {
             errors.push(error);
           }
@@ -73,10 +78,18 @@ export function createEventEmitter(ctx) {
     },
 
     once(event, callback) {
-      const wrapper = (data) => {
-        callback(data);
-        this.off(event, wrapper);
+      const originalEvent = event;
+      const wrapper = (event, data) => {
+        // 根据回调函数的参数长度决定传递的参数数量
+        if (callback.length >= 2) {
+          callback(event, data);
+        } else {
+          callback(data);
+        }
+        // 使用原始注册的事件名移除监听器
+        this.off(originalEvent, wrapper);
       };
+      // 注册 wrapper，它总是接受 2 个参数
       return this.on(event, wrapper);
     },
 
