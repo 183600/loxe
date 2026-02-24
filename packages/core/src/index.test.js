@@ -220,4 +220,41 @@ describe('Core', () => {
     const v2 = core.get('service');
     expect(v2.version).toBe(2);
   });
+
+  it('should handle service factory returning falsy values', () => {
+    const core = createCore();
+    
+    core.register('falseService', () => false);
+    core.register('zeroService', () => 0);
+    core.register('emptyStringService', () => '');
+    
+    expect(core.get('falseService')).toBe(false);
+    expect(core.get('zeroService')).toBe(0);
+    expect(core.get('emptyStringService')).toBe('');
+  });
+
+  it('should throw error when getting unregistered service', () => {
+    const core = createCore();
+    
+    expect(() => core.get('nonexistent')).toThrow('Service \'nonexistent\' not registered');
+  });
+
+  it('should handle service with multiple get calls in sequence', () => {
+    const core = createCore();
+    const calls = [];
+    
+    core.register('service', () => {
+      calls.push(Date.now());
+      return { id: calls.length };
+    }, true);
+    
+    const a = core.get('service');
+    const b = core.get('service');
+    const c = core.get('service');
+    
+    expect(a.id).toBe(1);
+    expect(b.id).toBe(1);
+    expect(c.id).toBe(1);
+    expect(calls).toHaveLength(1);
+  });
 });

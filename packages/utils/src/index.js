@@ -22,21 +22,21 @@ export function createUtils(ctx) {
       return false;
     },
 
-    deepClone: (obj) => {
+    deepClone: function(obj) {
       if (obj === null || typeof obj !== 'object') return obj;
-      if (Array.isArray(obj)) return obj.map(v => deepClone(v));
+      if (Array.isArray(obj)) return obj.map(v => this.deepClone(v));
       const cloned = {};
       for (const [k, v] of Object.entries(obj)) {
-        cloned[k] = deepClone(v);
+        cloned[k] = this.deepClone(v);
       }
       return cloned;
     },
 
-    deepMerge: (target, source) => {
+    deepMerge: function(target, source) {
       const result = { ...target };
       for (const [k, v] of Object.entries(source)) {
         if (v && typeof v === 'object' && !Array.isArray(v) && target[k] && typeof target[k] === 'object') {
-          result[k] = deepMerge(target[k], v);
+          result[k] = this.deepMerge(target[k], v);
         } else {
           result[k] = v;
         }

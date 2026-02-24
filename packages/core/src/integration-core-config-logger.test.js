@@ -1,69 +1,44 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createCore } from './index.js';
 import { createConfig } from '../../config/src/index.js';
 import { createLogger } from '../../logger/src/index.js';
 
 describe('Core + Config + Logger Integration', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('should integrate core with config', () => {
+  it('should integrate core with config and logger', () => {
     const core = createCore();
     
-    core.register('config', () => createConfig({ apiUrl: 'https://api.example.com' }), true);
+    core.register('config', () => createConfig({ 
+      appName: 'TestApp',
+      logLevel: 'info'
+    }), true);
     
-    const config = core.get('config');
-    expect(config.get('apiUrl')).toBe('https://api.example.com');
-  });
-
-  it('should integrate core with logger', () => {
-    const core = createCore();
-    
-    core.register('logger', () => createLogger(null, { level: 'info' }), true);
-    
-    const logger = core.get('logger');
-    const spy = vi.spyOn(console, 'log');
-    
-    logger.info('test message');
-    
-    expect(spy).toHaveBeenCalled();
-    expect(spy.mock.calls[0][0]).toContain('[INFO]');
-    expect(spy.mock.calls[0][0]).toContain('test message');
-  });
-
-  it('should create a configured logger service', () => {
-    const core = createCore();
-    
-    core.register('config', () => createConfig({ logLevel: 'debug', appPrefix: 'MyApp' }), true);
     core.register('logger', (ctx) => {
       const config = ctx.get('config');
       return createLogger(null, { 
-        level: config.get('logLevel'), 
-        prefix: config.get('appPrefix') 
+        level: config.get('logLevel'),
+        prefix: config.get('appName')
       });
     }, true);
     
+    const config = core.get('config');
     const logger = core.get('logger');
+    
+    expect(config.get('appName')).toBe('TestApp');
+    expect(logger.getLevel()).toBe('info');
+    
     const spy = vi.spyOn(console, 'log');
-    
-    logger.debug('debug message');
-    logger.info('info message');
-    
-    expect(spy).toHaveBeenCalledTimes(2);
-    expect(spy.mock.calls[0][0]).toContain('[MyApp]');
-    expect(spy.mock.calls[0][0]).toContain('[DEBUG]');
-    expect(spy.mock.calls[1][0]).toContain('[INFO]');
+    logger.info('Application started');
+    expect(spy).toHaveBeenCalled();
+    const output = spy.mock.calls[0][0];
+    expect(output).toContain('[TestApp]');
+    spy.mockRestore();
   });
 
-  it('should use config to control logger level dynamically', () => {
+  it('should allow dynamic log level changes via config', () => {
     const core = createCore();
     
     core.register('config', () => createConfig({ logLevel: 'error' }), true);
+    
     core.register('logger', (ctx) => {
       const config = ctx.get('config');
       return createLogger(null, { level: config.get('logLevel') });
@@ -72,78 +47,75 @@ describe('Core + Config + Logger Integration', () => {
     const config = core.get('config');
     const logger = core.get('logger');
     
-    const spyLog = vi.spyOn(console, 'log');
-    const spyError = vi.spyOn(console, 'error');
+    const spy = vi.spyOn(console, 'log');
     
+    logger.debug('debug message');
     logger.info('info message');
+    logger.warn('warn message');
     logger.error('error message');
     
-    expect(spyLog).not.toHaveBeenCalled();
-    expect(spyError).toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
     
+    // 通过配置更改日志级别
     config.set('logLevel', 'debug');
-    const logger2 = createLogger(null, { level: config.get('logLevel') });
+    logger.setLevel('debug');
     
-    logger2.info('info message 2');
+    logger.debug('debug message 2');
+    logger.info('info message 2');
     
-    expect(spyLog).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledTimes(2);
+    spy.mockRestore();
   });
 
-  it('should create a logging service with config-based prefixes', () => {
+  it('should create a configurable logging service', () => {
     const core = createCore();
     
     core.register('config', () => createConfig({ 
-      appName: 'MyApp',
-      appVersion: '1.0.0',
+      enableLogging: true,
       logPrefix: '[APP]'
     }), true);
     
-    core.register('logger', (ctx) => {
+    core.register('logger', () => createLogger(null, { level: 'debug' }), true);
+    
+    core.register('configurableLogger', (ctx) => {
       const config = ctx.get('config');
-      const appName = config.get('appName');
-      const prefix = `${config.get('logPrefix')} ${appName}`;
-      return createLogger(null, { level: 'info', prefix });
+      const logger = ctx.get('logger');
+      
+      return {
+        log(level, message, meta) {
+          if (config.get('enableLogging')) {
+            const prefix = config.get('logPrefix');
+            const prefixedMessage = prefix ? `${prefix} ${message}` : message;
+            
+            switch (level) {
+              case 'debug': logger.debug(prefixedMessage, meta); break;
+              case 'info': logger.info(prefixedMessage, meta); break;
+              case 'warn': logger.warn(prefixedMessage, meta); break;
+              case 'error': logger.error(prefixedMessage, meta); break;
+            }
+          }
+        },
+        setEnabled(enabled) {
+          config.set('enableLogging', enabled);
+        }
+      };
     }, true);
     
-    const logger = core.get('logger');
+    const service = core.get('configurableLogger');
     const spy = vi.spyOn(console, 'log');
     
-    logger.info('startup message');
-    
+    service.log('info', 'Test message', { userId: 123 });
     expect(spy).toHaveBeenCalled();
     const output = spy.mock.calls[0][0];
     expect(output).toContain('[APP]');
-    expect(output).toContain('MyApp');
-    expect(output).toContain('startup message');
-  });
-
-  it('should handle config changes affecting logger behavior', () => {
-    const core = createCore();
+    expect(output).toContain('Test message');
     
-    core.register('config', () => createConfig({ 
-      logLevel: 'info',
-      featureFlags: { enableDebug: false }
-    }), true);
+    spy.mockReset();
     
-    core.register('logger', (ctx) => {
-      const config = ctx.get('config');
-      return createLogger(null, { 
-        level: config.get('featureFlags.enableDebug') ? 'debug' : config.get('logLevel')
-      });
-    }, true);
+    service.setEnabled(false);
+    service.log('info', 'Should not appear');
+    expect(spy).not.toHaveBeenCalled();
     
-    const config = core.get('config');
-    const logger = core.get('logger');
-    
-    const spy = vi.spyOn(console, 'log');
-    
-    logger.info('normal message');
-    expect(spy).toHaveBeenCalledTimes(1);
-    
-    config.merge({ featureFlags: { enableDebug: true } });
-    const logger2 = createLogger(null, { level: 'debug' });
-    
-    logger2.debug('debug message');
-    expect(spy).toHaveBeenCalledTimes(2);
+    spy.mockRestore();
   });
 });

@@ -124,4 +124,41 @@ describe('Cache', () => {
     vi.advanceTimersByTime(1000);
     expect(cache.get('temp')).toBeUndefined();
   });
+
+  it('should support batch operations', () => {
+    const cache = createCache();
+    
+    // 批量设置
+    const entries = [
+      ['key1', 'value1'],
+      ['key2', 'value2'],
+      ['key3', 'value3'],
+      ['key4', { nested: 'value' }],
+      ['key5', [1, 2, 3]]
+    ];
+    
+    entries.forEach(([key, value]) => cache.set(key, value));
+    
+    // 验证批量设置
+    expect(cache.size()).toBe(5);
+    expect(cache.get('key1')).toBe('value1');
+    expect(cache.get('key2')).toBe('value2');
+    expect(cache.get('key3')).toBe('value3');
+    expect(cache.get('key4')).toEqual({ nested: 'value' });
+    expect(cache.get('key5')).toEqual([1, 2, 3]);
+    
+    // 批量获取
+    const keys = ['key1', 'key2', 'key3'];
+    const values = keys.map(key => cache.get(key));
+    expect(values).toEqual(['value1', 'value2', 'value3']);
+    
+    // 批量删除
+    keys.forEach(key => cache.delete(key));
+    expect(cache.size()).toBe(2);
+    expect(cache.has('key1')).toBe(false);
+    expect(cache.has('key2')).toBe(false);
+    expect(cache.has('key3')).toBe(false);
+    expect(cache.has('key4')).toBe(true);
+    expect(cache.has('key5')).toBe(true);
+  });
 });

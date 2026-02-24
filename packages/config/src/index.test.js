@@ -73,4 +73,30 @@ describe('Config', () => {
     
     process.env.TEST_VAR = originalEnv;
   });
+
+  it('should handle nested configuration keys with dot notation', () => {
+    const config = createConfig();
+    
+    config.set('database.host', 'localhost');
+    config.set('database.port', 5432);
+    config.set('database.username', 'admin');
+    config.set('cache.ttl', 3600);
+    
+    expect(config.get('database.host')).toBe('localhost');
+    expect(config.get('database.port')).toBe(5432);
+    expect(config.get('database.username')).toBe('admin');
+    expect(config.get('cache.ttl')).toBe(3600);
+  });
+
+  it('should fallback to environment variables for nested keys', () => {
+    const originalEnv = process.env;
+    process.env.DATABASE_HOST = 'env_host';
+    process.env.DATABASE_PORT = '3306';
+    
+    const config = createConfig();
+    expect(config.get('database.host')).toBe('env_host');
+    expect(config.get('database.port')).toBe('3306');
+    
+    process.env = originalEnv;
+  });
 });

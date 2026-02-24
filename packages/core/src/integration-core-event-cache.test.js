@@ -12,33 +12,7 @@ describe('Core + Event + Cache Integration', () => {
     vi.restoreAllMocks();
   });
 
-  it('should integrate core with event emitter', () => {
-    const core = createCore();
-    
-    core.register('event', createEventEmitter, true);
-    
-    const emitter = core.get('event');
-    let received = null;
-    
-    emitter.on('test', (data) => { received = data; });
-    emitter.emit('test', 'hello world');
-    
-    expect(received).toBe('hello world');
-  });
-
-  it('should integrate core with cache', () => {
-    const core = createCore();
-    
-    core.register('cache', createCache, true);
-    
-    const cache = core.get('cache');
-    cache.set('key', 'value');
-    
-    expect(cache.get('key')).toBe('value');
-    expect(cache.has('key')).toBe(true);
-  });
-
-  it('should use event emitter to notify cache changes', () => {
+  it('should integrate core with event emitter and cache', () => {
     const core = createCore();
     
     core.register('event', createEventEmitter, true);
@@ -47,76 +21,161 @@ describe('Core + Event + Cache Integration', () => {
     const event = core.get('event');
     const cache = core.get('cache');
     
-    const changes = [];
-    event.on('cache:set', (data) => { changes.push({ type: 'set', ...data }); });
-    event.on('cache:delete', (key) => { changes.push({ type: 'delete', key }); });
+    cache.set('key', 'value');
     
-    cache.set('key1', 'value1');
-    event.emit('cache:set', { key: 'key1', value: 'value1' });
+    const results = [];
+    event.on('test', (data) => {
+      results.push(data);
+      const cached = cache.get('key');
+      results.push(cached);
+    });
     
-    cache.set('key2', 'value2');
-    event.emit('cache:set', { key: 'key2', value: 'value2' });
+    event.emit('test', 'hello');
     
-    cache.delete('key1');
-    event.emit('cache:delete', 'key1');
-    
-    expect(changes).toHaveLength(3);
-    expect(changes[0]).toEqual({ type: 'set', key: 'key1', value: 'value1' });
-    expect(changes[1]).toEqual({ type: 'set', key: 'key2', value: 'value2' });
-    expect(changes[2]).toEqual({ type: 'delete', key: 'key1' });
+    expect(results).toEqual(['hello', 'value']);
   });
 
-  it('should create a cached event service', () => {
+  it('should create an event-driven cache service', () => {
     const core = createCore();
     
     core.register('event', createEventEmitter, true);
     core.register('cache', createCache, true);
     
-    core.register('cachedEvent', (ctx) => {
+    core.register('eventCache', (ctx) => {
       const event = ctx.get('event');
       const cache = ctx.get('cache');
       
       return {
-        emitCached(key, data, ttl) {
-          cache.set(key, data, ttl);
-          event.emit(key, data);
+        set(key, value, ttl) {
+          cache.set(key, value, ttl);
+          event.emit('cache:set', { key, value, ttl });
         },
-        getCached(key) {
-          return cache.get(key);
-        }
+        get(key) {
+          const value = cache.get(key);
+          event.emit('cache:get', { key, value });
+          return value;
+        },
+        delete(key) {
+          cache.delete(key);
+          event.emit('cache:delete', { key });
+        },
+        on: event.on.bind(event)
       };
     }, true);
     
-    const service = core.get('cachedEvent');
+    const service = core.get('eventCache');
+    const events = [];
     
-    let received = null;
-    core.get('event').on('user:login', (data) => { received = data; });
+    service.on('cache:set', (data) => events.push({ type: 'set', ...data }));
+    service.on('cache:get', (data) => events.push({ type: 'get', ...data }));
+    service.on('cache:delete', (data) => events.push({ type: 'delete', ...data }));
     
-    service.emitCached('user:login', { userId: 123 }, 1000);
+    service.set('key1', 'value1', 1000);
+    expect(service.get('key1')).toBe('value1');
+    service.delete('key1');
     
-    expect(received).toEqual({ userId: 123 });
-    expect(service.getCached('user:login')).toEqual({ userId: 123 });
+    expect(events).toHaveLength(3);
+    expect(events[0]).toEqual({ type: 'set', key: 'key1', value: 'value1', ttl: 1000 });
+    expect(events[1]).toEqual({ type: 'get', key: 'key1', value: 'value1' });
+    expect(events[2]).toEqual({ type: 'delete', key: 'key1' });
   });
 
-  it('should handle cache TTL with event notifications', () => {
+  it('should handle cache invalidation via events', () => {
     const core = createCore();
     
     core.register('event', createEventEmitter, true);
     core.register('cache', createCache, true);
     
-    const event = core.get('event');
-    const cache = core.get('cache');
+    core.register('invalidatingCache', (ctx) => {
+      const event = ctx.get('event');
+      const cache = ctx.get('cache');
+      
+      // 监听失效事件
+      event.on('invalidate', (pattern) => {
+        const keys = cache.keys();
+        keys.forEach(key => {
+          if (key.startsWith(pattern)) {
+            cache.delete(key);
+          }
+        });
+      });
+      
+      return {
+        set(key, value) {
+          cache.set(key, value);
+        },
+        get(key) {
+          return cache.get(key);
+        },
+        invalidate(pattern) {
+          event.emit('invalidate', pattern);
+        },
+        keys: cache.keys.bind(cache)
+      };
+    }, true);
     
-    const expiredKeys = [];
-    event.on('cache:expired', (key) => { expiredKeys.push(key); });
+    const service = core.get('invalidatingCache');
     
-    cache.set('temp', 'data', 1000);
+    service.set('user:123', { name: 'John' });
+    service.set('user:456', { name: 'Jane' });
+    service.set('product:789', { name: 'Widget' });
+    
+    expect(service.keys()).toHaveLength(3);
+    
+    service.invalidate('user:');
+    
+    expect(service.keys()).toHaveLength(1);
+    expect(service.get('user:123')).toBeUndefined();
+    expect(service.get('user:456')).toBeUndefined();
+    expect(service.get('product:789')).toEqual({ name: 'Widget' });
+  });
+
+  it('should cache event results with automatic expiration', () => {
+    const core = createCore();
+    
+    core.register('event', createEventEmitter, true);
+    core.register('cache', createCache, true);
+    
+    core.register('cachedEventService', (ctx) => {
+      const event = ctx.get('event');
+      const cache = ctx.get('cache');
+      
+      return {
+        subscribe(eventName, callback, ttl) {
+          const cacheKey = `sub:${eventName}`;
+          const subscription = event.on(eventName, callback);
+          cache.set(cacheKey, { active: true, timestamp: Date.now() }, ttl);
+          
+          return {
+            unsubscribe: () => {
+              subscription();
+              cache.delete(cacheKey);
+              event.emit('subscription:expired', { eventName });
+            }
+          };
+        },
+        emit: event.emit.bind(event),
+        hasSubscription: (eventName) => cache.has(`sub:${eventName}`)
+      };
+    }, true);
+    
+    const service = core.get('cachedEventService');
+    const results = [];
+    
+    const sub = service.subscribe('test', (data) => results.push(data), 1000);
+    
+    expect(service.hasSubscription('test')).toBe(true);
+    
+    service.emit('test', 'message1');
+    expect(results).toEqual(['message1']);
     
     vi.advanceTimersByTime(1000);
     
-    expect(cache.get('temp')).toBeUndefined();
-    event.emit('cache:expired', 'temp');
+    expect(service.hasSubscription('test')).toBe(false);
     
-    expect(expiredKeys).toContain('temp');
+    // 订阅已过期，但监听器仍然存在（因为没有自动移除）
+    // 这个测试验证缓存过期，而不是监听器移除
+    service.emit('test', 'message2');
+    expect(results).toEqual(['message1', 'message2']);
   });
 });

@@ -125,4 +125,37 @@ describe('Logger', () => {
     spyWarn.mockRestore();
     spyError.mockRestore();
   });
+
+  it('should dynamically change log level at runtime', () => {
+    const logger = createLogger(null, { level: 'error' });
+    const spyLog = vi.spyOn(console, 'log');
+    const spyWarn = vi.spyOn(console, 'warn');
+    const spyError = vi.spyOn(console, 'error');
+    
+    // 初始只有 error 级别
+    logger.debug('debug message');
+    logger.info('info message');
+    logger.warn('warn message');
+    logger.error('error message');
+    
+    expect(spyLog).not.toHaveBeenCalled();
+    expect(spyWarn).not.toHaveBeenCalled();
+    expect(spyError).toHaveBeenCalledTimes(1);
+    
+    // 切换到 debug 级别
+    logger.setLevel('debug');
+    
+    logger.debug('debug message 2');
+    logger.info('info message 2');
+    logger.warn('warn message 2');
+    logger.error('error message 2');
+    
+    expect(spyLog).toHaveBeenCalledTimes(2); // debug and info
+    expect(spyWarn).toHaveBeenCalledTimes(1);
+    expect(spyError).toHaveBeenCalledTimes(2); // 1 before + 1 after
+    
+    spyLog.mockRestore();
+    spyWarn.mockRestore();
+    spyError.mockRestore();
+  });
 });

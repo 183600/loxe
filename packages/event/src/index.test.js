@@ -262,4 +262,58 @@ describe('EventEmitter', () => {
     emitter.emit('test');
     expect(results).toEqual(['regular']);
   });
+
+  it('should handle dynamic listener management during event emission', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    const listenersToRemove = [];
+    
+    // 注册多个监听器
+    emitter.on('test', () => {
+      results.push('listener1');
+      // 动态移除 listener2
+      emitter.off('test', listenersToRemove[0]);
+    });
+    
+    const listener2 = () => {
+      results.push('listener2');
+    };
+    listenersToRemove.push(listener2);
+    emitter.on('test', listener2);
+    
+    emitter.on('test', () => results.push('listener3'));
+    
+    emitter.emit('test');
+    expect(results).toEqual(['listener1', 'listener3']);
+    
+    // 第二次发射应该只有 listener1 和 listener3
+    results.length = 0;
+    emitter.emit('test');
+    expect(results).toEqual(['listener1', 'listener3']);
+  });
+
+  it('should support conditional listener addition based on event data', () => {
+    const emitter = createEventEmitter();
+    const results = [];
+    
+    emitter.on('data', (data) => {
+      results.push('initial:' + data);
+      
+      // 根据数据决定是否添加新监听器
+      if (data === 'add') {
+        emitter.on('data', (newData) => {
+          results.push('dynamic:' + newData);
+        });
+      }
+    });
+    
+    emitter.emit('data', 'first');
+    expect(results).toEqual(['initial:first']);
+    
+    emitter.emit('data', 'add');
+    expect(results).toEqual(['initial:first', 'initial:add', 'dynamic:add']);
+    
+    emitter.emit('data', 'second');
+    expect(results).toEqual(['initial:first', 'initial:add', 'dynamic:add', 'initial:second', 'dynamic:second']);
+  });
 });
