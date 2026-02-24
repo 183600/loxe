@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IStorage, ITransaction, createStorage, MemoryStorage, MemoryTransaction, IndexedDBStorage, IndexedDBTransaction } from './index.js';
 
 describe('IStorage Interface', () => {

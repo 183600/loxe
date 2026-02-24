@@ -6,7 +6,7 @@
 export function createLogger(ctx, options = {}) {
   const { level = 'info', prefix = '' } = options;
   const levels = { debug: 0, info: 1, warn: 2, error: 3 };
-  const currentLevel = levels[level] ?? 1;
+  let currentLevel = levels[level] ?? 1;
 
   const formatMessage = (levelName, message, meta) => {
     const timestamp = new Date().toISOString();

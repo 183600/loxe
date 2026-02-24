@@ -35,4 +35,67 @@ describe('Core', () => {
     core.register('test', () => ({}));
     expect(core.has('test')).toBe(true);
   });
+
+  it('should remove services', () => {
+    const core = createCore();
+    core.register('test', () => ({ value: 42 }));
+    expect(core.has('test')).toBe(true);
+    
+    core.remove('test');
+    expect(core.has('test')).toBe(false);
+    expect(() => core.get('test')).toThrow('Service \'test\' not registered');
+  });
+
+  it('should clear all services', () => {
+    const core = createCore();
+    core.register('test1', () => ({ value: 1 }));
+    core.register('test2', () => ({ value: 2 }));
+    core.register('test3', () => ({ value: 3 }));
+    
+    expect(core.list()).toHaveLength(3);
+    
+    core.clear();
+    expect(core.list()).toHaveLength(0);
+    expect(core.has('test1')).toBe(false);
+    expect(core.has('test2')).toBe(false);
+    expect(core.has('test3')).toBe(false);
+  });
+
+  it('should list all registered services', () => {
+    const core = createCore();
+    core.register('service1', () => ({}));
+    core.register('service2', () => ({}));
+    core.register('service3', () => ({}));
+    
+    const services = core.list();
+    expect(services).toHaveLength(3);
+    expect(services).toContain('service1');
+    expect(services).toContain('service2');
+    expect(services).toContain('service3');
+  });
+
+  it('should register multiple services at once', () => {
+    const core = createCore();
+    core.registerAll([
+      ['service1', () => ({ id: 1 }), true],
+      ['service2', () => ({ id: 2 }), false],
+      ['service3', () => ({ id: 3 }), true]
+    ]);
+    
+    expect(core.list()).toHaveLength(3);
+    expect(core.get('service1').id).toBe(1);
+    expect(core.get('service2').id).toBe(2);
+    expect(core.get('service3').id).toBe(3);
+  });
+
+  it('should return same instance for singleton services registered via registerAll', () => {
+    const core = createCore();
+    core.registerAll([
+      ['singleton', () => ({ id: Math.random() }), true]
+    ]);
+    
+    const a = core.get('singleton');
+    const b = core.get('singleton');
+    expect(a.id).toBe(b.id);
+  });
 });
