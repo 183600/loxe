@@ -170,8 +170,13 @@ describe('Integration: Event + Cache', () => {
     // 监听通配符失效事件
     event.on('invalidate:api:*', (event, pattern) => {
       const keys = cache.keys();
+      // pattern 现在是从 args 传递的，可能是 undefined
+      // 从 event 中提取 pattern（去掉 'invalidate:' 前缀）
+      const eventPattern = event.startsWith('invalidate:') ? event.substring('invalidate:'.length) : event;
+      // 使用 eventPattern 作为前缀，去掉 '*' 后缀
+      const prefix = eventPattern.endsWith('*') ? eventPattern.slice(0, -1) : eventPattern;
       keys.forEach(key => {
-        if (key.startsWith(pattern)) {
+        if (key.startsWith(prefix)) {
           cache.delete(key);
         }
       });

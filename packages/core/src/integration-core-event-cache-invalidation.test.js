@@ -109,7 +109,7 @@ describe('Integration: Core + Event + Cache', () => {
     cache.set('user:456', { id: 456, name: 'Old User' });
 
     // 监听缓存刷新事件
-    events.on('cache:refresh', (event, { key, data }) => {
+    events.on('cache:refresh', ({ key, data }) => {
       cache.set(key, data);
     });
 
@@ -133,7 +133,7 @@ describe('Integration: Core + Event + Cache', () => {
     const invalidatedKeys = [];
 
     // 监听批量失效事件
-    events.on('cache:invalidate:batch', (event, keys) => {
+    events.on('cache:invalidate:batch', (keys) => {
       invalidatedKeys.push(...keys);
       keys.forEach(key => cache.delete(key));
     });
@@ -198,7 +198,7 @@ describe('Integration: Core + Event + Cache', () => {
     const invalidatedKeys = [];
 
     // 监听条件失效事件
-    events.on('cache:invalidate:conditional', (event, condition) => {
+    events.on('cache:invalidate:conditional', (condition) => {
       const keys = cache.keys();
       keys.forEach(key => {
         const data = cache.get(key);

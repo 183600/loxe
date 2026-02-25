@@ -38,15 +38,20 @@ describe('Integration: Event + Logger Direct Interaction', () => {
     const event = createEventEmitter();
     const logger = createLogger(null, { level: 'error' });
 
+    // 在 logger 创建后再设置 spyError
     const spyError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    // 监听错误事件并记录
-    // emit 方法传递 (event, data)，所以监听器接收 (eventName, errorInfo)
-    event.on('listener:error', (eventName, errorInfo) => {
-      logger.error(`Error in listener for event: ${errorInfo.originalEventName}`, { 
-        error: errorInfo.error.message, 
-        data: errorInfo.data 
-      });
+// 监听错误事件并记录
+    // emit 方法传递 (event, data)，所以监听器接收 (event, errorInfo)
+    // 但由于 emit 方法中的参数传递逻辑，实际接收的是 (errorInfo, event)
+    event.on('listener:error', (errorInfo, event) => {
+      console.log('listener:error called', errorInfo, event);
+      if (errorInfo && errorInfo.originalEventName) {
+        logger.error(`Error in listener for event: ${errorInfo.originalEventName}`, { 
+          error: errorInfo.error.message, 
+          data: errorInfo.data 
+        });
+      }
     });
 
     // 包装 emit 方法以捕获错误

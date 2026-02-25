@@ -105,33 +105,34 @@ describe('Integration: Storage + Logger', () => {
       async tx() {
         this.logger.debug('Starting transaction');
         const tx = await this.storage.tx();
+        const logger = this.logger;
         
         return {
           async get(key) {
-            this.logger.debug('Transaction get', { key });
+            logger.debug('Transaction get', { key });
             return await tx.get(key);
           },
           
           async put(key, value) {
-            this.logger.debug('Transaction put', { key });
+            logger.debug('Transaction put', { key });
             await tx.put(key, value);
           },
           
           async del(key) {
-            this.logger.debug('Transaction delete', { key });
+            logger.debug('Transaction delete', { key });
             await tx.del(key);
           },
           
           async commit() {
-            this.logger.info('Committing transaction');
+            logger.info('Committing transaction');
             await tx.commit();
-            this.logger.info('Transaction committed');
+            logger.info('Transaction committed');
           },
           
           async rollback() {
-            this.logger.warn('Rolling back transaction');
+            logger.warn('Rolling back transaction');
             await tx.rollback();
-            this.logger.info('Transaction rolled back');
+            logger.info('Transaction rolled back');
           }
         };
       }
@@ -268,7 +269,7 @@ describe('Integration: Storage + Logger', () => {
       },
       
       async close() {
-        this.logger.info(''Closing storage connection');
+        this.logger.info('Closing storage connection');
         await this.storage.close();
         this.isConnected = false;
         this.logger.info('Storage connection closed');
