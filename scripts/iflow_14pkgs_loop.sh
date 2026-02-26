@@ -45,9 +45,12 @@ CMDS=()
 for pkg in "${PACKAGES[@]}"; do
   DIRS+=("${PROJECT_ROOT}")
   
-  # 【关键修改】在执行脚本前，先 mkdir -p 确保日志目录存在
-  # 防止因 git clone 后没有子目录导致重定向日志失败
-  CMDS+=("mkdir -p ${PROJECT_ROOT}/packages/${pkg} && bash ${PROJECT_ROOT}/scripts/iflow_pkg_loop.sh PKG=${pkg} > ${PROJECT_ROOT}/packages/${pkg}/${pkg}.log 2>&1")
+  # 优化：将日志路径存入变量，便于调试
+  LOG_FILE="${PROJECT_ROOT}/packages/${pkg}/${pkg}.log"
+  
+  # 修改点：确保目录存在，并在命令前增加日志输出，方便排查为何瞬间结束
+  # 使用 >> 追加日志，虽然这里是新建，但保持一致性
+  CMDS+=("mkdir -p ${PROJECT_ROOT}/packages/${pkg} && echo '[Start] Running task for ${pkg}' >> ${LOG_FILE} && bash ${PROJECT_ROOT}/scripts/iflow_pkg_loop.sh PKG=${pkg} >> ${LOG_FILE} 2>&1 && echo '[End] Task for ${pkg} finished' >> ${LOG_FILE}")
 done
 
 # 并发控制
@@ -111,13 +114,12 @@ run_job() {
   # 进入目录
   cd "$dir" || return 1
 
-  # 加载环境变量 (主要适用于本机 Termux，CI 环境通常由 Actions 注入)
+  # 加载环境变量 (主要适用于本机 Termux)
   if [ -f ~/.bashrc ]; then
     source ~/.bashrc 2>/dev/null || true
   fi
 
   # 设置 Bun 路径 (主要适用于本机安装)
-  # GitHub Actions 通常由 setup-bun Action 添加到系统 PATH
   if [ -d "$HOME/.bun/bin" ]; then
     export PATH="$HOME/.bun/bin:$PATH"
   fi
@@ -130,6 +132,9 @@ run_job() {
   # 设置环境变量
   export MAX_LOOPS="${MAX_LOOPS:-10}"
   export NODE_OPTIONS="--max-old-space-size=4096"
+  
+  # 调试输出：输出到主日志，确认函数被调用
+  echo "[Job $job_id] Starting: $cmd" >&2
 
   # 执行命令
   (
@@ -137,11 +142,12 @@ run_job() {
     if [ -f "$CLEANUP_FLAG" ] && [ "$(cat "$CLEANUP_FLAG")" = "1" ]; then
       exit 143
     fi
-    # 这里的 cmd 包含了 mkdir -p 逻辑
+    # 这里的 cmd 包含了 mkdir 和 日志逻辑
     eval "$cmd"
   )
 
   local exit_code=$?
+  echo "[Job $job_id] Exited with code: $exit_code" >&2
 
   if [ $exit_code -eq 130 ] || [ $exit_code -eq 143 ] || [ $exit_code -eq 137 ]; then
     return $exit_code
@@ -163,9 +169,6 @@ cd "$PROJECT_ROOT" || exit 1
 
 if ! command -v parallel &>/dev/null; then
   echo "错误: 未检测到 GNU Parallel。"
-  echo "在 Ubuntu/Debian: sudo apt-get install parallel"
-  echo "在 Termux: pkg install parallel"
-  echo "在 GitHub Actions 中，请确保在 Workflow 中添加了安装 parallel 的步骤。"
   exit 1
 fi
 
@@ -175,17 +178,21 @@ echo "📂 项目根目录: $PROJECT_ROOT"
 echo "📦 包数量: ${#PACKAGES[@]}"
 echo "🔄 每包最大循环: $MAX_LOOPS"
 echo "⚡ 最大并发任务数: $JOB_LIMIT"
-echo "📝 按 Ctrl+C 可以中断并彻底清理所有进程"
-echo "========================================="
-echo "📦 包列表: ${PACKAGES[*]}"
 echo "========================================="
 
-# 使用 parallel 并发执行
-parallel --jobs "${JOB_LIMIT}" \
+# ==========================================
+# 关键修改点
+# ==========================================
+# 1. 添加 --shell /bin/bash：强制 parallel 使用 bash 而不是 sh (dash)，
+#    这样才能正确识别 export -f 导出的 run_job 函数。
+# 2. 添加 --verbose：让 parallel 输出它正在执行的命令，方便调试。
+# 3. 移除 --resume-failed：避免因读取旧的 joblog 文件导致跳过任务。
+
+parallel --shell /bin/bash \
+  --jobs "${JOB_LIMIT}" \
   --tag \
   --line-buffer \
-  --joblog /tmp/iflow_14pkgs_log_$$.txt \
-  --resume-failed \
+  --verbose \
   run_job {1} {2} {#} \
   ::: "${DIRS[@]}" \
   :::+ "${CMDS[@]}"
