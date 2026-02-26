@@ -1,3 +1,18 @@
+name: iflow-js-autoloop
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: iflow-autoflow-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
 jobs:
   run-js-5h:
     runs-on: ubuntu-latest
@@ -5,10 +20,13 @@ jobs:
     env:
       RUN_HOURS: 5
       WORK_BRANCH: main
+
       RELEASE_MARKER_FILE: .git/iflow_release_tag
+
       IFLOW_API_KEY: ${{ secrets.IFLOW_API_KEY }}
       IFLOW_BASE_URL: https://maas-api.cn-huabei-1.xf-yun.com/v2
       IFLOW_MODEL_NAME: xopglm47blth2
+
       GH_TOKEN: ${{ secrets.IFLOW_PAT }}
 
     steps:
@@ -28,16 +46,17 @@ jobs:
           git config user.name "iflow-bot"
           git config user.email "iflow-bot@users.noreply.github.com"
 
-      # --- 修改 1: 安装 GNU Parallel ---
-      - name: Install System Dependencies
+      # --- 关键修改 1: 安装 GNU Parallel ---
+      - name: Install System Dependencies (Parallel)
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y parallel
-          # 避免并行计算引用声明干扰日志
+          # 自动接受 parallel 的 citation，避免日志中出现警告或阻塞
           mkdir -p ~/.parallel
           touch ~/.parallel/will-cite
 
+      # --- 关键修改 2: 安装 Bun ---
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -62,27 +81,31 @@ jobs:
           set -euo pipefail
           bun install
 
-      # --- 修改 2: 确保所有脚本具有执行权限 ---
+      # --- 关键修改 3: 赋予脚本执行权限 ---
       - name: Make scripts executable
         shell: bash
         run: |
           set -euo pipefail
           chmod +x scripts/iflow_14pkgs_loop.sh
-          # 确保被调用的子脚本也可被 bash 执行（虽然 bash xxx.sh 不需要+x，但为了保险起见）
+          # 虽然被调用的子脚本不一定需要 +x (因为用 bash xxx.sh 调用)，但赋予权限更规范
           chmod +x scripts/iflow_pkg_loop.sh || true
 
-      # --- 修改 3: 显式设置 PROJECT_ROOT ---
+      # --- 关键修改 4: 显式设置环境变量并执行 ---
       - name: Run for ${{ env.RUN_HOURS }} hours
         shell: bash
         env:
-          # 关键修正：覆盖脚本中的默认 Termux 路径
-          # github.workspace 通常是 /home/runner/work/RepoName/RepoName
+          # 显式覆盖脚本中的路径，确保在 CI 中路径正确
           PROJECT_ROOT: ${{ github.workspace }}
         run: |
           set -euo pipefail
+          echo "========================================="
           echo "Starting loop at: $(pwd)"
           echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
-          # 使用 timeout 配合脚本内部的 trap 信号处理
+          echo "Bun version: $(bun --version)"
+          echo "========================================="
+          
+          # 使用 timeout 命令限制运行时长
+          # 发送 TERM 信号，触发脚本内部的 trap 清理逻辑
           timeout --signal=TERM $(( RUN_HOURS * 3600 )) bash scripts/iflow_14pkgs_loop.sh || true
 
       - name: Commit & push to GitHub
