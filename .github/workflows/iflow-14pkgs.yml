@@ -1,18 +1,3 @@
-name: iflow-js-autoloop
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-
-concurrency:
-  group: iflow-autoflow-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: write
-
 jobs:
   run-js-5h:
     runs-on: ubuntu-latest
@@ -20,13 +5,10 @@ jobs:
     env:
       RUN_HOURS: 5
       WORK_BRANCH: main
-
       RELEASE_MARKER_FILE: .git/iflow_release_tag
-
       IFLOW_API_KEY: ${{ secrets.IFLOW_API_KEY }}
       IFLOW_BASE_URL: https://maas-api.cn-huabei-1.xf-yun.com/v2
       IFLOW_MODEL_NAME: xopglm47blth2
-      
       GH_TOKEN: ${{ secrets.IFLOW_PAT }}
 
     steps:
@@ -46,8 +28,16 @@ jobs:
           git config user.name "iflow-bot"
           git config user.email "iflow-bot@users.noreply.github.com"
 
-      # --- 修改开始：适配 Bun 环境 ---
-      
+      # --- 修改 1: 安装 GNU Parallel ---
+      - name: Install System Dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y parallel
+          # 避免并行计算引用声明干扰日志
+          mkdir -p ~/.parallel
+          touch ~/.parallel/will-cite
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -72,18 +62,27 @@ jobs:
           set -euo pipefail
           bun install
 
-      # --- 修改结束 ---
-
-      - name: Make loop script executable
+      # --- 修改 2: 确保所有脚本具有执行权限 ---
+      - name: Make scripts executable
         shell: bash
         run: |
           set -euo pipefail
           chmod +x scripts/iflow_14pkgs_loop.sh
+          # 确保被调用的子脚本也可被 bash 执行（虽然 bash xxx.sh 不需要+x，但为了保险起见）
+          chmod +x scripts/iflow_pkg_loop.sh || true
 
+      # --- 修改 3: 显式设置 PROJECT_ROOT ---
       - name: Run for ${{ env.RUN_HOURS }} hours
         shell: bash
+        env:
+          # 关键修正：覆盖脚本中的默认 Termux 路径
+          # github.workspace 通常是 /home/runner/work/RepoName/RepoName
+          PROJECT_ROOT: ${{ github.workspace }}
         run: |
           set -euo pipefail
+          echo "Starting loop at: $(pwd)"
+          echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
+          # 使用 timeout 配合脚本内部的 trap 信号处理
           timeout --signal=TERM $(( RUN_HOURS * 3600 )) bash scripts/iflow_14pkgs_loop.sh || true
 
       - name: Commit & push to GitHub
